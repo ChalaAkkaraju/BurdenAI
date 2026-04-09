@@ -6,5 +6,10 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  preview: {
+    host: true,
+    port: 4173,
+    allowedHosts: true
   }
 })

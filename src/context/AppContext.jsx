@@ -44,6 +44,9 @@ export const ROLE_PERMISSIONS = {
   'Finance':         ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
   'HR':              ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
   'Regional Lead':   ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
+  'US Manager':      ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
+  'APAC Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
+  'EMEA Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
   'Analyst':         ['dashboard', 'reports', 'roster', 'rawdata'],
   'Viewer':          ['dashboard', 'reports'],
 };

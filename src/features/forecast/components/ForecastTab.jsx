@@ -1,21 +1,21 @@
 // ForecastTab.jsx
-// Top-level forecast view. Owns the baseline, drivers, and renders the panels.
+// Top-level forecast view. Pulls baseline from AppContext (current period
+// kpis), feeds it into the engine, and renders the panels.
 
-import React from "react";
-import { DollarSign, TrendingUp, Users, Calendar } from "lucide-react";
+import React, { useMemo } from "react";
+import { DollarSign, TrendingUp, Users, Calendar, AlertCircle } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
 import { useForecast } from "../hooks/useForecast.js";
+import { useApp } from "../../../context/AppContext.jsx";
 
-// MVP baseline — wire to AppContext / current-period data in next iteration.
-// Numbers match the existing dashboard snapshot for consistency.
-const BASELINE = {
+// Fallback used only if context is unavailable / empty (defensive, shouldn't
+// normally hit in production).
+const FALLBACK_BASELINE = {
   totalBurden: 6_400_000,
   headcount: 456,
   productiveHours: 83_000,
 };
-
-const FORECAST_YEAR = 2027;
 
 const formatUSD = (n) => {
   if (n === null || n === undefined || isNaN(n)) return "$0";
@@ -28,7 +28,18 @@ const formatUSD = (n) => {
 const formatRate = (n) => `$${n.toFixed(2)}/hr`;
 const formatNumber = (n) => n.toLocaleString();
 
-function KPICard({ title, baseline, forecast, formatter, icon: Icon, color }) {
+// "2026-03" -> { year: 2026, monthName: "March" }
+function parsePeriod(period) {
+  if (!period || typeof period !== "string") return { year: null, monthName: "" };
+  const [y, m] = period.split("-");
+  const year = parseInt(y, 10);
+  const monthIdx = parseInt(m, 10) - 1;
+  const months = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December"];
+  return { year, monthName: months[monthIdx] || "" };
+}
+
+function KPICard({ title, baseline, forecast, formatter, icon: Icon, color, baselineLabel }) {
   const delta = forecast - baseline;
   const pct = baseline === 0 ? 0 : (delta / baseline) * 100;
   const isUp = delta >= 0;
@@ -41,7 +52,7 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color }) {
             {formatter(forecast)}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            from {formatter(baseline)} ({FORECAST_YEAR - 1} actual)
+            from {formatter(baseline)} ({baselineLabel})
           </p>
         </div>
         <div className={`p-3 rounded-lg ${color}`}>
@@ -63,7 +74,31 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color }) {
 }
 
 export default function ForecastTab() {
-  const { drivers, updateDriver, resetDrivers, result } = useForecast(BASELINE);
+  const { kpis, selectedPeriod } = useApp();
+
+  // Derive baseline from current-period KPIs. Fall back gracefully if
+  // context isn't ready or the period has no data.
+  const { baseline, isFromContext } = useMemo(() => {
+    if (kpis && kpis.totalCTC > 0 && kpis.totalHours > 0) {
+      return {
+        baseline: {
+          totalBurden: kpis.totalCTC,
+          headcount: kpis.activeEmployees,
+          productiveHours: kpis.totalHours,
+        },
+        isFromContext: true,
+      };
+    }
+    return { baseline: FALLBACK_BASELINE, isFromContext: false };
+  }, [kpis]);
+
+  const { drivers, updateDriver, resetDrivers, result } = useForecast(baseline);
+
+  const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
+  const forecastYear = (baselineYear || 2026) + 1;
+  const baselineLabel = isFromContext
+    ? `${monthName} ${baselineYear} actual`
+    : "reference period";
 
   return (
     <div className="p-6 space-y-6">
@@ -72,43 +107,52 @@ export default function ForecastTab() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
             <Calendar size={12} />
-            Forecast · {FORECAST_YEAR}
+            Forecast · {forecastYear}
           </div>
           <h1 className="text-3xl font-bold text-gray-900">
             Forecasted burden cost
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Project next-year burden based on inflation, productivity gains, and
-            AOP volume.
+            Project next-year burden from {baselineLabel} based on inflation,
+            productivity gains, and AOP volume.
           </p>
         </div>
+        {!isFromContext && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+            <AlertCircle size={14} />
+            Using fallback baseline — no data in current period
+          </div>
+        )}
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard
           title="Forecasted total burden"
-          baseline={BASELINE.totalBurden}
+          baseline={baseline.totalBurden}
           forecast={result.forecastedTotal}
           formatter={formatUSD}
           icon={DollarSign}
           color="bg-blue-500"
+          baselineLabel={baselineLabel}
         />
         <KPICard
           title="Forecasted burden rate"
-          baseline={BASELINE.totalBurden / BASELINE.productiveHours}
+          baseline={baseline.totalBurden / baseline.productiveHours}
           forecast={result.forecastedRate}
           formatter={formatRate}
           icon={TrendingUp}
           color="bg-amber-500"
+          baselineLabel={baselineLabel}
         />
         <KPICard
           title="Forecasted headcount"
-          baseline={BASELINE.headcount}
+          baseline={baseline.headcount}
           forecast={result.forecastedHeadcount}
           formatter={formatNumber}
           icon={Users}
           color="bg-emerald-500"
+          baselineLabel={baselineLabel}
         />
       </div>
 
@@ -128,10 +172,10 @@ export default function ForecastTab() {
 
       {/* Footnote */}
       <p className="text-xs text-gray-400 italic">
-        MVP forecast — single-year, blended drivers, baseline pinned to{" "}
-        {(BASELINE.totalBurden / 1_000_000).toFixed(1)}M reference period.
-        Per-country drivers, multi-year compounding, and AOP file ingest are
-        next.
+        MVP forecast — single-year, blended drivers, baseline derived from{" "}
+        {isFromContext ? `${monthName} ${baselineYear}` : "fallback reference"}.
+        Change the period selector at the top of the app to re-base. Per-country
+        drivers, multi-year compounding, and AOP file ingest are next.
       </p>
     </div>
   );

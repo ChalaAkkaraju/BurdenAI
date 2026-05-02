@@ -12,8 +12,10 @@ import MultiYearChart from "./MultiYearChart.jsx";
 import CountryBreakdown from "./CountryBreakdown.jsx";
 import AOPUploader from "./AOPUploader.jsx";
 import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
+import SensitivityChart from "./SensitivityChart.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
+import { runSensitivity } from "../engine/sensitivityAnalysis.js";
 import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
 import { useApp } from "../../../context/AppContext.jsx";
 
@@ -169,6 +171,13 @@ export default function ForecastTab() {
   const manualOverrideCount = Object.values(manualOverrides).reduce(
     (acc, ov) => acc + (ov?.inflationPct != null ? 1 : 0) + (ov?.productivityPct != null ? 1 : 0),
     0
+  );
+
+  // Sensitivity analysis on the active scenario
+  const [sensitivityDelta, setSensitivityDelta] = useState(2);
+  const sensitivity = useMemo(
+    () => runSensitivity({ baseline, drivers: active.drivers, deltaPct: sensitivityDelta }),
+    [baseline, active.drivers, sensitivityDelta]
   );
 
   // Trigger a CSV download of the current forecast state.
@@ -333,6 +342,13 @@ export default function ForecastTab() {
         scenarios={scenarios}
         baseline={baseline}
         activeId={activeId}
+      />
+
+      {/* Sensitivity tornado for the active scenario */}
+      <SensitivityChart
+        sensitivity={sensitivity}
+        deltaPct={sensitivityDelta}
+        onDeltaChange={setSensitivityDelta}
       />
 
       {/* AOP plan upload (affects country breakdown when loaded) */}

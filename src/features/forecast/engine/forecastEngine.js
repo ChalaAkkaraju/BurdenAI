@@ -20,18 +20,26 @@ export function forecast({ baseline, drivers }) {
   const i = (drivers.inflationPct ?? 0) / 100;
   const p = (drivers.productivityPct ?? 0) / 100;
   const a = (drivers.aopHeadcountDeltaPct ?? 0) / 100;
+  // Hiring ramp: 1.0 = full year impact (Jan hires), 0.5 = uniform across year,
+  // 0.0 = back-loaded (Dec hires). Defaults to 1.0 to preserve prior behavior.
+  const ramp = drivers.hiringRamp != null
+    ? Math.max(0, Math.min(1, drivers.hiringRamp))
+    : 1.0;
+  // Cost-bearing AOP factor scaled by ramp; year-end HC uses full delta.
+  const aCost = a * ramp;
 
   const baseRate = totalBurden / productiveHours;
 
-  // Sequential composition
+  // Sequential composition (cost path uses ramp-adjusted AOP)
   const afterInflation     = totalBurden * (1 + i);
   const afterProductivity  = afterInflation * (1 - p);
-  const afterAop           = afterProductivity * (1 + a);
+  const afterAop           = afterProductivity * (1 + aCost);
 
   const forecastedTotal     = afterAop;
   const forecastedRate      = baseRate * (1 + i) * (1 - p);
-  const forecastedHeadcount = Math.round(headcount * (1 + a));
-  const forecastedHours     = productiveHours * (1 + a);
+  const forecastedHeadcount = Math.round(headcount * (1 + a));      // year-end target
+  const avgFTE              = headcount * (1 + aCost);              // cost-bearing avg
+  const forecastedHours     = productiveHours * (1 + aCost);
 
   // Waterfall: anchors (Current, Forecast) carry full values; middle steps carry deltas.
   const waterfall = [
@@ -45,7 +53,9 @@ export function forecast({ baseline, drivers }) {
   return {
     forecastedTotal,
     forecastedRate,
-    forecastedHeadcount,
+    forecastedHeadcount, // year-end target headcount
+    avgFTE,              // cost-bearing average FTE for the year
+    hiringRamp: ramp,
     forecastedHours,
     waterfall,
   };
@@ -70,18 +80,26 @@ export function forecastPerCountry({
   const globalI = (drivers.inflationPct ?? 0) / 100;
   const globalP = (drivers.productivityPct ?? 0) / 100;
   const globalA = (drivers.aopHeadcountDeltaPct ?? 0) / 100;
+  const globalRamp = drivers.hiringRamp != null
+    ? Math.max(0, Math.min(1, drivers.hiringRamp))
+    : 1.0;
 
   const byCountry = countryBaselines.map((cb) => {
     const ov = countryDriverOverrides[cb.countryCode] || {};
     const i = ov.inflationPct        != null ? ov.inflationPct        / 100 : globalI;
     const p = ov.productivityPct     != null ? ov.productivityPct     / 100 : globalP;
     const a = ov.aopHeadcountDeltaPct!= null ? ov.aopHeadcountDeltaPct/ 100 : globalA;
+    const ramp = ov.hiringRamp != null
+      ? Math.max(0, Math.min(1, ov.hiringRamp))
+      : globalRamp;
+    const aCost = a * ramp;
 
     const baseRate = cb.productiveHours > 0 ? cb.totalBurden / cb.productiveHours : 0;
-    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + a);
+    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + aCost);
     const forecastedRate      = baseRate * (1 + i) * (1 - p);
-    const forecastedHeadcount = Math.round(cb.headcount * (1 + a));
-    const forecastedHours     = cb.productiveHours * (1 + a);
+    const forecastedHeadcount = Math.round(cb.headcount * (1 + a));      // year-end
+    const avgFTE              = cb.headcount * (1 + aCost);              // cost-bearing
+    const forecastedHours     = cb.productiveHours * (1 + aCost);
     return {
       countryCode: cb.countryCode,
       label: cb.label || cb.countryCode,
@@ -94,11 +112,13 @@ export function forecastPerCountry({
       forecastedTotal,
       forecastedRate,
       forecastedHeadcount,
+      avgFTE,
       forecastedHours,
       driversApplied: {
         inflationPct:         i * 100,
         productivityPct:      p * 100,
         aopHeadcountDeltaPct: a * 100,
+        hiringRamp:           ramp,
         isOverridden: Object.keys(ov).length > 0,
       },
     };

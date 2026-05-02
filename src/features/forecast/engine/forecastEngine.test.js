@@ -65,6 +65,50 @@ describe("forecast engine", () => {
     });
     expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05);
   });
+
+  it("hiring ramp defaults to 1.0 (full year impact) — preserves prior behavior", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10 },
+    });
+    expect(r.hiringRamp).toBe(1.0);
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05 * 0.97 * 1.10);
+  });
+
+  it("ramp 0.5 halves the AOP cost contribution, year-end HC unchanged", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 0, productivityPct: 0, aopHeadcountDeltaPct: 10, hiringRamp: 0.5 },
+    });
+    // Cost grows by 5%, not 10%
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05);
+    // Year-end HC still reflects the full 10% growth target
+    expect(r.forecastedHeadcount).toBe(Math.round(456 * 1.10));
+    // avgFTE reflects the cost-bearing mid-year average
+    expect(r.avgFTE).toBeCloseTo(456 * 1.05);
+  });
+
+  it("ramp 0 means new hires contribute zero cost in year 1 (back-loaded)", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { aopHeadcountDeltaPct: 50, hiringRamp: 0 },
+    });
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000); // no cost growth
+    expect(r.forecastedHeadcount).toBe(Math.round(456 * 1.50)); // but HC target still set
+  });
+
+  it("ramp clamps to [0, 1] for out-of-range values", () => {
+    const high = forecast({
+      baseline: sampleBaseline,
+      drivers: { aopHeadcountDeltaPct: 10, hiringRamp: 1.5 },
+    });
+    const low = forecast({
+      baseline: sampleBaseline,
+      drivers: { aopHeadcountDeltaPct: 10, hiringRamp: -0.5 },
+    });
+    expect(high.hiringRamp).toBe(1.0);
+    expect(low.hiringRamp).toBe(0.0);
+  });
 });
 
 describe("forecastMultiYear", () => {
@@ -204,5 +248,16 @@ describe("forecastPerCountry", () => {
     expect(india.driversApplied.inflationPct).toBe(5);    // global
     expect(india.driversApplied.productivityPct).toBe(3); // global
     expect(india.driversApplied.aopHeadcountDeltaPct).toBe(15); // override
+  });
+
+  it("global hiring ramp dampens AOP cost contribution per country, year-end HC unchanged", () => {
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers: { ...drivers, hiringRamp: 0.5 },
+    });
+    // Each country's cost should reflect aopCost = 0.5 × 10% = 5%
+    expect(r.byCountry[0].forecastedTotal).toBeCloseTo(4_000_000 * 1.05 * 0.97 * 1.05);
+    expect(r.byCountry[0].forecastedHeadcount).toBe(Math.round(200 * 1.10)); // year-end unchanged
+    expect(r.byCountry[0].avgFTE).toBeCloseTo(200 * 1.05);
   });
 });

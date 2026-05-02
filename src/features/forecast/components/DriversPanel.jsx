@@ -3,7 +3,7 @@
 // Calls onChange(key, value) up to the parent.
 
 import React from "react";
-import { TrendingUp, Zap, Users, RotateCcw } from "lucide-react";
+import { TrendingUp, Zap, Users, RotateCcw, Calendar } from "lucide-react";
 
 const driverConfig = [
   {
@@ -41,6 +41,19 @@ const driverConfig = [
     helper: "Planned headcount growth from the AOP",
     accent: "text-blue-600",
     bg: "bg-blue-50",
+  },
+  {
+    key: "hiringRamp",
+    label: "Hiring ramp",
+    icon: Calendar,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    suffix: "",
+    helper: "1 = Jan hires (full year cost) · 0.5 = uniform · 0 = Dec hires",
+    accent: "text-purple-600",
+    bg: "bg-purple-50",
+    isRamp: true,
   },
 ];
 
@@ -109,7 +122,7 @@ export default function DriversPanel({ drivers, onChange, onReset }) {
               <div className="flex justify-between mt-1">
                 <p className="text-xs text-gray-500">{cfg.helper}</p>
                 <p className="text-xs text-gray-400 font-mono">
-                  {cfg.min}% — {cfg.max}%
+                  {cfg.min}{cfg.suffix} — {cfg.max}{cfg.suffix}
                 </p>
               </div>
             </div>

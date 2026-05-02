@@ -12,20 +12,20 @@ export const DEFAULT_SCENARIOS = [
   {
     id: "base",
     name: "Base",
-    description: "Steady-state assumptions",
-    drivers: { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10 },
+    description: "Steady-state assumptions, hires evenly across year",
+    drivers: { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10, hiringRamp: 0.5 },
   },
   {
     id: "high",
     name: "High inflation",
-    description: "Wage and benefits surge, slower productivity",
-    drivers: { inflationPct: 8, productivityPct: 2, aopHeadcountDeltaPct: 5 },
+    description: "Wage surge, slower productivity, front-loaded hiring",
+    drivers: { inflationPct: 8, productivityPct: 2, aopHeadcountDeltaPct: 5, hiringRamp: 0.85 },
   },
   {
     id: "low",
     name: "Conservative",
-    description: "Cooler economy, hiring slowdown",
-    drivers: { inflationPct: 3, productivityPct: 5, aopHeadcountDeltaPct: -5 },
+    description: "Cooler economy, back-loaded hiring",
+    drivers: { inflationPct: 3, productivityPct: 5, aopHeadcountDeltaPct: -5, hiringRamp: 0.25 },
   },
 ];
 
@@ -34,7 +34,21 @@ function loadScenarios() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Migrate older saved scenarios that lack hiringRamp by inheriting
+        // the field from the matching default (or 1.0 for unknowns).
+        return parsed.map((s) => {
+          if (s.drivers && s.drivers.hiringRamp != null) return s;
+          const def = DEFAULT_SCENARIOS.find((d) => d.id === s.id);
+          return {
+            ...s,
+            drivers: {
+              ...s.drivers,
+              hiringRamp: def?.drivers.hiringRamp ?? 1.0,
+            },
+          };
+        });
+      }
     }
   } catch {
     // Fall through to defaults

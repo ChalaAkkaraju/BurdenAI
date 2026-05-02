@@ -33,11 +33,15 @@ export default function CountryDriverOverrides({
 
   const overrideCount = Object.keys(manualOverrides).reduce((acc, code) => {
     const ov = manualOverrides[code];
-    return acc + (ov?.inflationPct != null ? 1 : 0) + (ov?.productivityPct != null ? 1 : 0);
+    return acc
+      + (ov?.inflationPct    != null ? 1 : 0)
+      + (ov?.productivityPct != null ? 1 : 0)
+      + (ov?.fxChangePct     != null ? 1 : 0);
   }, 0);
 
-  const inflationOverrides = Object.values(manualOverrides).filter((o) => o?.inflationPct != null).length;
+  const inflationOverrides    = Object.values(manualOverrides).filter((o) => o?.inflationPct    != null).length;
   const productivityOverrides = Object.values(manualOverrides).filter((o) => o?.productivityPct != null).length;
+  const fxOverrides           = Object.values(manualOverrides).filter((o) => o?.fxChangePct     != null).length;
 
   const updateField = (code, key, raw) => {
     const next = { ...manualOverrides };
@@ -98,8 +102,8 @@ export default function CountryDriverOverrides({
             </div>
             <p className="text-xs text-gray-500 mt-0.5 text-left">
               {overrideCount === 0
-                ? "Override inflation or productivity per country. Empty = inherit scenario default."
-                : `${inflationOverrides} inflation, ${productivityOverrides} productivity overridden`}
+                ? "Override inflation, productivity, or FX change per country. Empty = inherit scenario default."
+                : `${inflationOverrides} inflation, ${productivityOverrides} productivity, ${fxOverrides} FX overridden`}
             </p>
           </div>
         </div>
@@ -135,9 +139,10 @@ export default function CountryDriverOverrides({
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Country</th>
-                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baseline burden</th>
+                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baseline</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Inflation %</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Productivity %</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">FX change %</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,10 +150,16 @@ export default function CountryDriverOverrides({
                   const ov = manualOverrides[cb.countryCode] || {};
                   const inflPlaceholder = `${scenarioDrivers.inflationPct}`;
                   const prodPlaceholder = `${scenarioDrivers.productivityPct}`;
+                  const fxPlaceholder = `0`;
                   const inflVal = ov.inflationPct != null ? ov.inflationPct : "";
                   const prodVal = ov.productivityPct != null ? ov.productivityPct : "";
+                  const fxVal   = ov.fxChangePct != null ? ov.fxChangePct : "";
                   const inflOverridden = ov.inflationPct != null;
                   const prodOverridden = ov.productivityPct != null;
+                  const fxOverridden   = ov.fxChangePct != null;
+                  const inputBase = "w-20 px-2 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200";
+                  const inputOverride = "border-purple-300 bg-purple-50 text-purple-900 font-semibold";
+                  const inputDefault  = "border-gray-200 bg-white text-gray-900";
                   return (
                     <tr key={cb.countryCode} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-2 px-2 font-medium text-gray-900">
@@ -161,16 +172,9 @@ export default function CountryDriverOverrides({
                       <td className="py-2 px-2">
                         <div className="flex items-center justify-center gap-1">
                           <input
-                            type="number"
-                            step="0.5"
-                            value={inflVal}
-                            placeholder={inflPlaceholder}
+                            type="number" step="0.5" value={inflVal} placeholder={inflPlaceholder}
                             onChange={(e) => updateField(cb.countryCode, "inflationPct", e.target.value)}
-                            className={`w-20 px-2 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                              inflOverridden
-                                ? "border-purple-300 bg-purple-50 text-purple-900 font-semibold"
-                                : "border-gray-200 bg-white text-gray-900"
-                            }`}
+                            className={`${inputBase} ${inflOverridden ? inputOverride : inputDefault}`}
                           />
                           <span className="text-xs text-gray-400">%</span>
                         </div>
@@ -178,16 +182,19 @@ export default function CountryDriverOverrides({
                       <td className="py-2 px-2">
                         <div className="flex items-center justify-center gap-1">
                           <input
-                            type="number"
-                            step="0.5"
-                            value={prodVal}
-                            placeholder={prodPlaceholder}
+                            type="number" step="0.5" value={prodVal} placeholder={prodPlaceholder}
                             onChange={(e) => updateField(cb.countryCode, "productivityPct", e.target.value)}
-                            className={`w-20 px-2 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                              prodOverridden
-                                ? "border-purple-300 bg-purple-50 text-purple-900 font-semibold"
-                                : "border-gray-200 bg-white text-gray-900"
-                            }`}
+                            className={`${inputBase} ${prodOverridden ? inputOverride : inputDefault}`}
+                          />
+                          <span className="text-xs text-gray-400">%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number" step="0.5" value={fxVal} placeholder={fxPlaceholder}
+                            onChange={(e) => updateField(cb.countryCode, "fxChangePct", e.target.value)}
+                            className={`${inputBase} ${fxOverridden ? inputOverride : inputDefault}`}
                           />
                           <span className="text-xs text-gray-400">%</span>
                         </div>

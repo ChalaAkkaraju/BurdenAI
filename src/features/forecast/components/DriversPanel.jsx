@@ -3,7 +3,7 @@
 // Calls onChange(key, value) up to the parent.
 
 import React from "react";
-import { TrendingUp, Zap, Users, RotateCcw, Calendar } from "lucide-react";
+import { TrendingUp, Zap, Users, RotateCcw, Calendar, Shield } from "lucide-react";
 
 const driverConfig = [
   {
@@ -50,10 +50,22 @@ const driverConfig = [
     max: 1,
     step: 0.05,
     suffix: "",
-    helper: "1 = Jan hires (full year cost) · 0.5 = uniform · 0 = Dec hires",
+    helper: "1 = Jan hires · 0.5 = uniform · 0 = Dec hires",
     accent: "text-purple-600",
     bg: "bg-purple-50",
     isRamp: true,
+  },
+  {
+    key: "hedgeRatio",
+    label: "FX hedge ratio",
+    icon: Shield,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    suffix: "",
+    helper: "0 = unhedged (full FX impact) · 1 = fully hedged",
+    accent: "text-cyan-600",
+    bg: "bg-cyan-50",
   },
 ];
 

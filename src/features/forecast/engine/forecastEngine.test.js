@@ -109,6 +109,70 @@ describe("forecast engine", () => {
     expect(high.hiringRamp).toBe(1.0);
     expect(low.hiringRamp).toBe(0.0);
   });
+
+  it("hedge ratio defaults to 0 and FX has no effect when fxChange unset", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 5, productivityPct: 0, aopHeadcountDeltaPct: 0 },
+    });
+    expect(r.hedgeRatio).toBe(0);
+    expect(r.fxImpact).toBe(0);
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05);
+  });
+
+  it("100% hedge eliminates FX impact regardless of fxChange", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { fxChangePct: 10, hedgeRatio: 1.0 },
+    });
+    expect(r.fxImpact).toBeCloseTo(0);
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000);
+  });
+
+  it("0% hedge passes full FX impact through to USD cost", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { fxChangePct: 5, hedgeRatio: 0 },
+    });
+    expect(r.fxImpact).toBeCloseTo(5);
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05);
+  });
+
+  it("partial hedge: 60% hedge ratio passes through 40% of FX change", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: { fxChangePct: 10, hedgeRatio: 0.6 },
+    });
+    expect(r.fxImpact).toBeCloseTo(4); // (1 - 0.6) × 10
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.04);
+  });
+
+  it("FX layered correctly with other drivers (multiplicative)", () => {
+    const r = forecast({
+      baseline: sampleBaseline,
+      drivers: {
+        inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10,
+        hiringRamp: 1.0, fxChangePct: -5, hedgeRatio: 0.5,
+      },
+    });
+    // expected: 6.4M × 1.05 × 0.97 × 1.10 × (1 + 0.5 × -0.05)
+    //         = 6.4M × 1.05 × 0.97 × 1.10 × 0.975
+    expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05 * 0.97 * 1.10 * 0.975);
+  });
+
+  it("waterfall includes FX step only when impact is non-zero", () => {
+    const noFx = forecast({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 5, fxChangePct: 0 },
+    });
+    expect(noFx.waterfall.find((s) => s.label.includes("FX"))).toBeUndefined();
+
+    const withFx = forecast({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 5, fxChangePct: 5, hedgeRatio: 0 },
+    });
+    expect(withFx.waterfall.find((s) => s.label.includes("FX"))).toBeDefined();
+  });
 });
 
 describe("forecastMultiYear", () => {

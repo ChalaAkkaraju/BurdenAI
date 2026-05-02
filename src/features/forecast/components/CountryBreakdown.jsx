@@ -29,7 +29,8 @@ function deltaPct(value, base) {
 }
 
 export default function CountryBreakdown({ activeScenario, countryForecast, aopActive = false, manualOverrideCount = 0 }) {
-  const [expanded, setExpanded] = useState(true);
+  // Default collapsed for laptop-friendly layout — expand on demand.
+  const [expanded, setExpanded] = useState(false);
 
   if (!countryForecast || !countryForecast.byCountry || countryForecast.byCountry.length === 0) {
     return null;

@@ -27,28 +27,48 @@ export function forecast({ baseline, drivers }) {
     : 1.0;
   // Cost-bearing AOP factor scaled by ramp; year-end HC uses full delta.
   const aCost = a * ramp;
+  // FX hedging: hedgeRatio 0..1, fxChangePct positive = local currency strengthens
+  // vs USD (cost up), negative = weakens (cost down). Hedged portion is locked,
+  // unhedged portion flows through to USD-reported cost.
+  const hedgeRatio = drivers.hedgeRatio != null
+    ? Math.max(0, Math.min(1, drivers.hedgeRatio))
+    : 0;
+  const fxChange = (drivers.fxChangePct ?? 0) / 100;
+  const fxImpact = (1 - hedgeRatio) * fxChange;
 
   const baseRate = totalBurden / productiveHours;
 
-  // Sequential composition (cost path uses ramp-adjusted AOP)
+  // Sequential composition (cost path uses ramp-adjusted AOP, FX layered last)
   const afterInflation     = totalBurden * (1 + i);
   const afterProductivity  = afterInflation * (1 - p);
   const afterAop           = afterProductivity * (1 + aCost);
+  const afterFx            = afterAop * (1 + fxImpact);
 
-  const forecastedTotal     = afterAop;
-  const forecastedRate      = baseRate * (1 + i) * (1 - p);
+  const forecastedTotal     = afterFx;
+  const forecastedRate      = baseRate * (1 + i) * (1 - p) * (1 + fxImpact);
   const forecastedHeadcount = Math.round(headcount * (1 + a));      // year-end target
   const avgFTE              = headcount * (1 + aCost);              // cost-bearing avg
   const forecastedHours     = productiveHours * (1 + aCost);
 
   // Waterfall: anchors (Current, Forecast) carry full values; middle steps carry deltas.
-  const waterfall = [
+  // FX step is included only when it has a non-trivial impact (avoids clutter when fx=0).
+  const waterfallSteps = [
     { label: "Current",        value: totalBurden,                          cumulative: totalBurden,        kind: "anchor" },
     { label: "+ Inflation",    value: afterInflation - totalBurden,         cumulative: afterInflation,     kind: "delta"  },
     { label: "- Productivity", value: afterProductivity - afterInflation,   cumulative: afterProductivity,  kind: "delta"  },
     { label: "+ AOP volume",   value: afterAop - afterProductivity,         cumulative: afterAop,           kind: "delta"  },
-    { label: "Forecast",       value: forecastedTotal,                      cumulative: forecastedTotal,    kind: "anchor" },
   ];
+  if (Math.abs(fxImpact) > 1e-9) {
+    waterfallSteps.push({
+      label: fxImpact >= 0 ? "+ FX (unhedged)" : "- FX (unhedged)",
+      value: afterFx - afterAop,
+      cumulative: afterFx,
+      kind: "delta",
+    });
+  }
+  waterfallSteps.push({
+    label: "Forecast", value: forecastedTotal, cumulative: forecastedTotal, kind: "anchor",
+  });
 
   return {
     forecastedTotal,
@@ -56,8 +76,10 @@ export function forecast({ baseline, drivers }) {
     forecastedHeadcount, // year-end target headcount
     avgFTE,              // cost-bearing average FTE for the year
     hiringRamp: ramp,
+    hedgeRatio,
+    fxImpact: fxImpact * 100, // for display (back to %)
     forecastedHours,
-    waterfall,
+    waterfall: waterfallSteps,
   };
 }
 
@@ -83,6 +105,11 @@ export function forecastPerCountry({
   const globalRamp = drivers.hiringRamp != null
     ? Math.max(0, Math.min(1, drivers.hiringRamp))
     : 1.0;
+  // Hedge ratio is global (single hedging policy). FX changes are per-country.
+  const hedgeRatio = drivers.hedgeRatio != null
+    ? Math.max(0, Math.min(1, drivers.hedgeRatio))
+    : 0;
+  const globalFxChange = (drivers.fxChangePct ?? 0) / 100;
 
   const byCountry = countryBaselines.map((cb) => {
     const ov = countryDriverOverrides[cb.countryCode] || {};
@@ -92,11 +119,13 @@ export function forecastPerCountry({
     const ramp = ov.hiringRamp != null
       ? Math.max(0, Math.min(1, ov.hiringRamp))
       : globalRamp;
+    const fxChange = ov.fxChangePct != null ? ov.fxChangePct / 100 : globalFxChange;
+    const fxImpact = (1 - hedgeRatio) * fxChange;
     const aCost = a * ramp;
 
     const baseRate = cb.productiveHours > 0 ? cb.totalBurden / cb.productiveHours : 0;
-    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + aCost);
-    const forecastedRate      = baseRate * (1 + i) * (1 - p);
+    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + aCost) * (1 + fxImpact);
+    const forecastedRate      = baseRate * (1 + i) * (1 - p) * (1 + fxImpact);
     const forecastedHeadcount = Math.round(cb.headcount * (1 + a));      // year-end
     const avgFTE              = cb.headcount * (1 + aCost);              // cost-bearing
     const forecastedHours     = cb.productiveHours * (1 + aCost);
@@ -119,6 +148,8 @@ export function forecastPerCountry({
         productivityPct:      p * 100,
         aopHeadcountDeltaPct: a * 100,
         hiringRamp:           ramp,
+        fxChangePct:          fxChange * 100,
+        fxImpactPct:          fxImpact * 100,
         isOverridden: Object.keys(ov).length > 0,
       },
     };

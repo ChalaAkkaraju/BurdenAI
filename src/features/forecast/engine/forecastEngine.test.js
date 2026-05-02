@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { forecast } from "./forecastEngine.js";
+import { forecast, forecastMultiYear } from "./forecastEngine.js";
 
 const sampleBaseline = {
   totalBurden: 6_400_000,
@@ -64,5 +64,55 @@ describe("forecast engine", () => {
       drivers: { inflationPct: 5 }, // productivity & aop omitted
     });
     expect(r.forecastedTotal).toBeCloseTo(6_400_000 * 1.05);
+  });
+});
+
+describe("forecastMultiYear", () => {
+  const drivers = { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10 };
+
+  it("year 0 entry equals baseline", () => {
+    const t = forecastMultiYear({ baseline: sampleBaseline, drivers, years: 3 });
+    expect(t[0].yearOffset).toBe(0);
+    expect(t[0].totalBurden).toBeCloseTo(6_400_000);
+    expect(t[0].headcount).toBe(456);
+    expect(t[0].isBaseline).toBe(true);
+  });
+
+  it("trajectory length is years + 1 (includes baseline)", () => {
+    expect(forecastMultiYear({ baseline: sampleBaseline, drivers, years: 1 }).length).toBe(2);
+    expect(forecastMultiYear({ baseline: sampleBaseline, drivers, years: 3 }).length).toBe(4);
+    expect(forecastMultiYear({ baseline: sampleBaseline, drivers, years: 5 }).length).toBe(6);
+  });
+
+  it("year 1 of multi-year matches single-year forecast output", () => {
+    const single = forecast({ baseline: sampleBaseline, drivers });
+    const multi  = forecastMultiYear({ baseline: sampleBaseline, drivers, years: 1 });
+    expect(multi[1].totalBurden).toBeCloseTo(single.forecastedTotal);
+    expect(multi[1].headcount).toBe(single.forecastedHeadcount);
+  });
+
+  it("year N total compounds: baseline × [(1+i)(1-p)(1+a)]^N", () => {
+    const factor = 1.05 * 0.97 * 1.10;
+    const t = forecastMultiYear({ baseline: sampleBaseline, drivers, years: 3 });
+    expect(t[1].totalBurden).toBeCloseTo(6_400_000 * factor);
+    expect(t[2].totalBurden).toBeCloseTo(6_400_000 * factor * factor);
+    expect(t[3].totalBurden).toBeCloseTo(6_400_000 * factor * factor * factor);
+  });
+
+  it("zero drivers means flat trajectory", () => {
+    const t = forecastMultiYear({
+      baseline: sampleBaseline,
+      drivers: { inflationPct: 0, productivityPct: 0, aopHeadcountDeltaPct: 0 },
+      years: 5,
+    });
+    for (const point of t) {
+      expect(point.totalBurden).toBeCloseTo(6_400_000);
+      expect(point.headcount).toBe(456);
+    }
+  });
+
+  it("years defaults to 1 if zero or negative", () => {
+    const t = forecastMultiYear({ baseline: sampleBaseline, drivers, years: 0 });
+    expect(t.length).toBe(2);
   });
 });

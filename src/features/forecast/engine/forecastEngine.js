@@ -50,3 +50,50 @@ export function forecast({ baseline, drivers }) {
     waterfall,
   };
 }
+
+// forecastMultiYear: project the same drivers compounding across N years.
+// Returns an array starting at year 0 (baseline) through year N (final forecast).
+//
+// Each year's "baseline" becomes the previous year's forecast, so:
+//   year 1 total = baseline × (1+i)(1-p)(1+a)
+//   year 2 total = year 1 × (1+i)(1-p)(1+a) = baseline × [(1+i)(1-p)(1+a)]^2
+//   ...
+//
+// This is the standard compounding behavior finance teams expect. Per-year
+// driver overrides are a future enhancement.
+
+export function forecastMultiYear({ baseline, drivers, years }) {
+  const horizon = Math.max(1, Math.floor(years || 1));
+  const baseRate = baseline.totalBurden / baseline.productiveHours;
+
+  const trajectory = [
+    {
+      yearOffset: 0,
+      totalBurden: baseline.totalBurden,
+      burdenRate: baseRate,
+      headcount: baseline.headcount,
+      productiveHours: baseline.productiveHours,
+      isBaseline: true,
+    },
+  ];
+
+  let running = baseline;
+  for (let y = 1; y <= horizon; y++) {
+    const r = forecast({ baseline: running, drivers });
+    trajectory.push({
+      yearOffset: y,
+      totalBurden: r.forecastedTotal,
+      burdenRate: r.forecastedRate,
+      headcount: r.forecastedHeadcount,
+      productiveHours: r.forecastedHours,
+      isBaseline: false,
+    });
+    running = {
+      totalBurden: r.forecastedTotal,
+      headcount: r.forecastedHeadcount,
+      productiveHours: r.forecastedHours,
+    };
+  }
+
+  return trajectory;
+}

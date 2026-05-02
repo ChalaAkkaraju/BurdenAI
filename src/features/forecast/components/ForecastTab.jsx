@@ -2,14 +2,21 @@
 // Top-level forecast view. Pulls baseline from AppContext (current period
 // kpis), manages multiple scenarios, and renders the panels.
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { DollarSign, TrendingUp, Users, Calendar, AlertCircle } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
 import ScenarioTabs from "./ScenarioTabs.jsx";
 import ScenarioComparison from "./ScenarioComparison.jsx";
+import MultiYearChart from "./MultiYearChart.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useApp } from "../../../context/AppContext.jsx";
+
+const HORIZON_OPTIONS = [
+  { value: 1, label: "1 yr" },
+  { value: 3, label: "3 yrs" },
+  { value: 5, label: "5 yrs" },
+];
 
 const FALLBACK_BASELINE = {
   totalBurden: 6_400_000,
@@ -89,6 +96,8 @@ export default function ForecastTab() {
     return { baseline: FALLBACK_BASELINE, isFromContext: false };
   }, [kpis]);
 
+  const [horizonYears, setHorizonYears] = useState(1);
+
   const {
     scenarios,
     activeId,
@@ -97,7 +106,7 @@ export default function ForecastTab() {
     updateDriver,
     resetScenario,
     resetAllScenarios,
-  } = useScenarios(baseline);
+  } = useScenarios(baseline, horizonYears);
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
@@ -108,26 +117,53 @@ export default function ForecastTab() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
             <Calendar size={12} />
             Forecast · {forecastYear}
+            {horizonYears > 1 && ` – ${forecastYear + horizonYears - 1}`}
           </div>
           <h1 className="text-3xl font-bold text-gray-900">
             Forecasted burden cost
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Compare scenarios and see how each driver mix shapes next-year
-            burden from {baselineLabel}.
+            Compare scenarios and see how each driver mix shapes burden across{" "}
+            the {horizonYears === 1 ? "next year" : `next ${horizonYears} years`} from {baselineLabel}.
           </p>
         </div>
-        {!isFromContext && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
-            <AlertCircle size={14} />
-            Using fallback baseline — no data in current period
+        <div className="flex items-center gap-3">
+          {!isFromContext && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+              <AlertCircle size={14} />
+              Using fallback baseline
+            </div>
+          )}
+          {/* Horizon picker */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Horizon
+            </span>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 shadow-sm">
+              {HORIZON_OPTIONS.map((opt) => {
+                const isActive = horizonYears === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setHorizonYears(opt.value)}
+                    className={`px-3 py-1.5 text-sm rounded-md transition font-medium ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow"
+                        : "text-gray-700 hover:text-gray-900"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Scenario tabs */}
@@ -200,6 +236,14 @@ export default function ForecastTab() {
         baseline={baseline}
         activeId={activeId}
       />
+
+      {/* Multi-year trajectory (only when horizon > 1) */}
+      {horizonYears > 1 && (
+        <MultiYearChart
+          scenarios={scenarios}
+          baselineYear={baselineYear || 2026}
+        />
+      )}
 
       {/* Footnote */}
       <p className="text-xs text-gray-400 italic">

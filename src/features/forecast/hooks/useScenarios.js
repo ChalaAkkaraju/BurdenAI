@@ -4,7 +4,7 @@
 // edited / shown in detail.
 
 import { useEffect, useMemo, useState } from "react";
-import { forecast } from "../engine/forecastEngine.js";
+import { forecast, forecastMultiYear } from "../engine/forecastEngine.js";
 
 const STORAGE_KEY = "burdenai_forecast_scenarios";
 
@@ -42,7 +42,7 @@ function loadScenarios() {
   return DEFAULT_SCENARIOS;
 }
 
-export function useScenarios(baseline) {
+export function useScenarios(baseline, horizonYears = 1) {
   const [scenarios, setScenarios] = useState(loadScenarios);
   const [activeId, setActiveId] = useState(scenarios[0]?.id || "base");
 
@@ -55,14 +55,17 @@ export function useScenarios(baseline) {
     }
   }, [scenarios]);
 
-  // Compute forecast result for every scenario (used by comparison table)
+  // Compute forecast result + multi-year trajectory for every scenario.
+  // `result` is the year-1 forecast (for the waterfall + KPIs of the active
+  // scenario); `trajectory` is the [year 0 .. year N] series for charts.
   const scenarioResults = useMemo(
     () =>
       scenarios.map((s) => ({
         ...s,
         result: forecast({ baseline, drivers: s.drivers }),
+        trajectory: forecastMultiYear({ baseline, drivers: s.drivers, years: horizonYears }),
       })),
-    [scenarios, baseline]
+    [scenarios, baseline, horizonYears]
   );
 
   const active =

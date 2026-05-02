@@ -51,6 +51,79 @@ export function forecast({ baseline, drivers }) {
   };
 }
 
+// forecastPerCountry: apply the same drivers to each country's baseline
+// independently and return both the country-level breakdown and the rolled-up
+// totals.
+//
+//   countryBaselines: [{ countryCode, label?, totalBurden, headcount, productiveHours }]
+//   drivers:          { inflationPct, productivityPct, aopHeadcountDeltaPct }
+//
+// For now drivers apply uniformly to every country. Per-country driver overrides
+// (e.g., 4% inflation in US vs 8% in India) are a future enhancement — the
+// per-country structure is here to support that without rework.
+
+export function forecastPerCountry({ countryBaselines, drivers }) {
+  const i = (drivers.inflationPct ?? 0) / 100;
+  const p = (drivers.productivityPct ?? 0) / 100;
+  const a = (drivers.aopHeadcountDeltaPct ?? 0) / 100;
+
+  const byCountry = countryBaselines.map((cb) => {
+    const baseRate = cb.productiveHours > 0 ? cb.totalBurden / cb.productiveHours : 0;
+    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + a);
+    const forecastedRate      = baseRate * (1 + i) * (1 - p);
+    const forecastedHeadcount = Math.round(cb.headcount * (1 + a));
+    const forecastedHours     = cb.productiveHours * (1 + a);
+    return {
+      countryCode: cb.countryCode,
+      label: cb.label || cb.countryCode,
+      baseline: {
+        totalBurden: cb.totalBurden,
+        headcount: cb.headcount,
+        productiveHours: cb.productiveHours,
+        rate: baseRate,
+      },
+      forecastedTotal,
+      forecastedRate,
+      forecastedHeadcount,
+      forecastedHours,
+    };
+  });
+
+  const totals = byCountry.reduce(
+    (acc, c) => ({
+      forecastedTotal:     acc.forecastedTotal + c.forecastedTotal,
+      forecastedHeadcount: acc.forecastedHeadcount + c.forecastedHeadcount,
+      forecastedHours:     acc.forecastedHours + c.forecastedHours,
+      baselineTotal:       acc.baselineTotal + c.baseline.totalBurden,
+    }),
+    { forecastedTotal: 0, forecastedHeadcount: 0, forecastedHours: 0, baselineTotal: 0 }
+  );
+
+  // Add contribution % (each country's share of the forecasted total)
+  const enriched = byCountry.map((c) => ({
+    ...c,
+    contributionPct: totals.forecastedTotal > 0
+      ? (c.forecastedTotal / totals.forecastedTotal) * 100
+      : 0,
+  }));
+
+  // Blended rate from totals
+  const blendedRate = totals.forecastedHours > 0
+    ? totals.forecastedTotal / totals.forecastedHours
+    : 0;
+
+  return {
+    byCountry: enriched,
+    totals: {
+      forecastedTotal:     totals.forecastedTotal,
+      forecastedRate:      blendedRate,
+      forecastedHeadcount: totals.forecastedHeadcount,
+      forecastedHours:     totals.forecastedHours,
+      baselineTotal:       totals.baselineTotal,
+    },
+  };
+}
+
 // forecastMultiYear: project the same drivers compounding across N years.
 // Returns an array starting at year 0 (baseline) through year N (final forecast).
 //

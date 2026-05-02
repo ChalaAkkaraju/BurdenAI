@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { forecast, forecastMultiYear } from "./forecastEngine.js";
+import { forecast, forecastMultiYear, forecastPerCountry } from "./forecastEngine.js";
 
 const sampleBaseline = {
   totalBurden: 6_400_000,
@@ -114,5 +114,67 @@ describe("forecastMultiYear", () => {
   it("years defaults to 1 if zero or negative", () => {
     const t = forecastMultiYear({ baseline: sampleBaseline, drivers, years: 0 });
     expect(t.length).toBe(2);
+  });
+});
+
+describe("forecastPerCountry", () => {
+  const sampleCountries = [
+    { countryCode: "US", label: "USA",   totalBurden: 4_000_000, headcount: 200, productiveHours: 36_000 },
+    { countryCode: "IN", label: "India", totalBurden: 1_500_000, headcount: 180, productiveHours: 32_000 },
+    { countryCode: "DE", label: "Germany", totalBurden: 900_000, headcount:  76, productiveHours: 15_000 },
+  ];
+  const drivers = { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10 };
+
+  it("each country forecasts independently with the same drivers", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    expect(r.byCountry).toHaveLength(3);
+    expect(r.byCountry[0].forecastedTotal).toBeCloseTo(4_000_000 * 1.05 * 0.97 * 1.10);
+    expect(r.byCountry[1].forecastedTotal).toBeCloseTo(1_500_000 * 1.05 * 0.97 * 1.10);
+    expect(r.byCountry[2].forecastedTotal).toBeCloseTo(  900_000 * 1.05 * 0.97 * 1.10);
+  });
+
+  it("totals.forecastedTotal equals sum of country forecasts", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const sum = r.byCountry.reduce((acc, c) => acc + c.forecastedTotal, 0);
+    expect(r.totals.forecastedTotal).toBeCloseTo(sum);
+  });
+
+  it("contribution percentages sum to ~100", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const sumPct = r.byCountry.reduce((acc, c) => acc + c.contributionPct, 0);
+    expect(sumPct).toBeCloseTo(100);
+  });
+
+  it("blended rate equals total burden divided by total hours", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    expect(r.totals.forecastedRate).toBeCloseTo(
+      r.totals.forecastedTotal / r.totals.forecastedHours
+    );
+  });
+
+  it("zero drivers leave per-country baselines unchanged", () => {
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers: { inflationPct: 0, productivityPct: 0, aopHeadcountDeltaPct: 0 },
+    });
+    expect(r.byCountry[0].forecastedTotal).toBeCloseTo(4_000_000);
+    expect(r.byCountry[1].forecastedTotal).toBeCloseTo(1_500_000);
+    expect(r.byCountry[2].forecastedTotal).toBeCloseTo(  900_000);
+  });
+
+  it("aggregate forecastPerCountry total equals single forecast on summed baseline", () => {
+    // Cross-check: forecasting each country and summing should equal forecasting
+    // the rolled-up baseline directly (because drivers are uniform).
+    const aggregateBaseline = sampleCountries.reduce(
+      (acc, c) => ({
+        totalBurden:     acc.totalBurden + c.totalBurden,
+        headcount:       acc.headcount + c.headcount,
+        productiveHours: acc.productiveHours + c.productiveHours,
+      }),
+      { totalBurden: 0, headcount: 0, productiveHours: 0 }
+    );
+    const single = forecast({ baseline: aggregateBaseline, drivers });
+    const perCountry = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    expect(perCountry.totals.forecastedTotal).toBeCloseTo(single.forecastedTotal);
   });
 });

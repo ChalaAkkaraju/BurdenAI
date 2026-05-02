@@ -9,7 +9,9 @@ import WaterfallChart from "./WaterfallChart.jsx";
 import ScenarioTabs from "./ScenarioTabs.jsx";
 import ScenarioComparison from "./ScenarioComparison.jsx";
 import MultiYearChart from "./MultiYearChart.jsx";
+import CountryBreakdown from "./CountryBreakdown.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
+import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { useApp } from "../../../context/AppContext.jsx";
 
 const HORIZON_OPTIONS = [
@@ -80,7 +82,7 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color, base
 }
 
 export default function ForecastTab() {
-  const { kpis, selectedPeriod } = useApp();
+  const { kpis, selectedPeriod, summaryByCountry } = useApp();
 
   const { baseline, isFromContext } = useMemo(() => {
     if (kpis && kpis.totalCTC > 0 && kpis.totalHours > 0) {
@@ -107,6 +109,27 @@ export default function ForecastTab() {
     resetScenario,
     resetAllScenarios,
   } = useScenarios(baseline, horizonYears);
+
+  // Country-level baselines (for the per-country breakdown panel).
+  // Falls back to empty if context isn't ready.
+  const countryBaselines = useMemo(() => {
+    if (!summaryByCountry || summaryByCountry.length === 0) return [];
+    return summaryByCountry
+      .filter((c) => c.totalCostToCompany > 0)
+      .map((c) => ({
+        countryCode: c.key,
+        label: c.label,
+        totalBurden: c.totalCostToCompany,
+        headcount: c.employeeCount,
+        productiveHours: c.totalHours,
+      }));
+  }, [summaryByCountry]);
+
+  // Forecast for active scenario, broken down by country.
+  const countryForecast = useMemo(() => {
+    if (countryBaselines.length === 0) return null;
+    return forecastPerCountry({ countryBaselines, drivers: active.drivers });
+  }, [countryBaselines, active.drivers]);
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
@@ -236,6 +259,14 @@ export default function ForecastTab() {
         baseline={baseline}
         activeId={activeId}
       />
+
+      {/* Country breakdown for active scenario */}
+      {countryForecast && (
+        <CountryBreakdown
+          activeScenario={active}
+          countryForecast={countryForecast}
+        />
+      )}
 
       {/* Multi-year trajectory (only when horizon > 1) */}
       {horizonYears > 1 && (

@@ -11,6 +11,7 @@ import AllocationRules from './components/views/AllocationRules';
 import CalculationRuns from './components/views/CalculationRuns';
 import Reports from './components/views/Reports';
 import AdminConsole from './components/views/AdminConsole';
+import ForecastTab from './features/forecast/components/ForecastTab';
 
 const pages = {
   dashboard: Dashboard,
@@ -20,6 +21,7 @@ const pages = {
   benefits: BenefitsConfig,
   allocation: AllocationRules,
   calculations: CalculationRuns,
+  forecast: ForecastTab,
   reports: Reports,
   admin: AdminConsole,
 };

@@ -10,6 +10,7 @@ import {
   Zap,
   Heart,
   Database,
+  TrendingUp,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -42,6 +43,12 @@ const Sidebar = ({ activePage, onNavigate }) => {
       section: 'PROCESSING',
       items: [
         { id: 'calculations', label: 'Calculation Runs', icon: Calculator },
+      ],
+    },
+    {
+      section: 'PLANNING',
+      items: [
+        { id: 'forecast', label: 'Forecast', icon: TrendingUp },
       ],
     },
     {

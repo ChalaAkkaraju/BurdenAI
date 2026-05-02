@@ -3,7 +3,7 @@
 // kpis), manages multiple scenarios, and renders the panels.
 
 import React, { useMemo, useState } from "react";
-import { DollarSign, TrendingUp, Users, Calendar, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Calendar, AlertCircle, Download } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
 import ScenarioTabs from "./ScenarioTabs.jsx";
@@ -14,6 +14,7 @@ import AOPUploader from "./AOPUploader.jsx";
 import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
+import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
 import { useApp } from "../../../context/AppContext.jsx";
 
 const HORIZON_OPTIONS = [
@@ -170,6 +171,32 @@ export default function ForecastTab() {
     0
   );
 
+  // Trigger a CSV download of the current forecast state.
+  const handleExport = () => {
+    const csv = buildForecastCsv({
+      scenarios,
+      activeScenario: active,
+      countryForecast,
+      baseline,
+      baselineLabel,
+      forecastYear,
+      horizonYears,
+    });
+    const filename = buildForecastFilename({
+      forecastYear,
+      scenarioName: active.name,
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
   const baselineLabel = isFromContext
@@ -225,6 +252,15 @@ export default function ForecastTab() {
               })}
             </div>
           </div>
+          {/* Export button */}
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition"
+            title="Export forecast as CSV"
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
         </div>
       </div>
 

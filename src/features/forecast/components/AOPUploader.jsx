@@ -35,7 +35,7 @@ function downloadSample() {
 
 const formatPct = (n) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 
-export default function AOPUploader({ countryBaselines, aopState, onAopChange }) {
+export default function AOPUploader({ countryBaselines, aopState, onAopChange, activeScenarioName }) {
   const fileInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [parseErrors, setParseErrors] = useState([]);
@@ -101,10 +101,17 @@ export default function AOPUploader({ countryBaselines, aopState, onAopChange })
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">AOP plan upload</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900">AOP plan upload</h3>
+            {activeScenarioName && (
+              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                Attaches to: {activeScenarioName}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500 mt-1">
-            Upload a CSV with planned headcount per country. When loaded, the
-            country breakdown uses your AOP plan instead of the scenario slider.
+            Upload a CSV with planned headcount per country. The AOP attaches to
+            the active scenario, so each scenario can have its own plan.
           </p>
         </div>
         <button

@@ -3,7 +3,7 @@
 // scenario name and a tiny preview of its forecasted total.
 
 import React from "react";
-import { Layers, RotateCcw } from "lucide-react";
+import { Layers, RotateCcw, FileText } from "lucide-react";
 
 const formatUSD = (n) => {
   if (n === null || n === undefined || isNaN(n)) return "$0";
@@ -24,10 +24,12 @@ export default function ScenarioTabs({ scenarios, activeId, onSelect, onResetAll
 
         {scenarios.map((s) => {
           const isActive = s.id === activeId;
+          const hasAop = !!s.aopState;
           return (
             <button
               key={s.id}
               onClick={() => onSelect(s.id)}
+              title={hasAop ? `AOP attached: ${s.aopState.fileName}` : "No AOP attached"}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition border ${
                 isActive
                   ? "bg-blue-50 border-blue-300 text-blue-700"
@@ -35,6 +37,9 @@ export default function ScenarioTabs({ scenarios, activeId, onSelect, onResetAll
               }`}
             >
               <span className="font-semibold">{s.name}</span>
+              {hasAop && (
+                <FileText size={11} className={isActive ? "text-emerald-600" : "text-emerald-500"} />
+              )}
               <span
                 className={`text-xs font-mono ${
                   isActive ? "text-blue-500" : "text-gray-400"

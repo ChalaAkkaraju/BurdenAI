@@ -55,6 +55,11 @@ export function buildSnapshot({
       name: s.name,
       description: s.description,
       drivers: { ...s.drivers },
+      aopState: s.aopState ? {
+        fileName: s.aopState.fileName,
+        rows: s.aopState.rows,
+        overrides: s.aopState.overrides,
+      } : null,
       forecastedTotal:    s.result?.forecastedTotal,
       forecastedRate:     s.result?.forecastedRate,
       forecastedHeadcount: s.result?.forecastedHeadcount,

@@ -107,11 +107,6 @@ export default function ForecastTab() {
 
   const [horizonYears, setHorizonYears] = useState(1);
 
-  // AOP plan upload state. When set, the country breakdown uses these
-  // per-country deltas instead of the active scenario's slider AOP.
-  // Shape: { fileName, rows, overrides } or null.
-  const [aopState, setAopState] = useState(null);
-
   // Manual per-country driver overrides (inflation / productivity).
   // Shape: { US: { inflationPct: 4 }, IN: { inflationPct: 9, productivityPct: 5 }, ... }
   const [manualOverrides, setManualOverrides] = useState({});
@@ -122,9 +117,13 @@ export default function ForecastTab() {
     setActiveId,
     active,
     updateDriver,
+    setScenarioAop,
     resetScenario,
     resetAllScenarios,
   } = useScenarios(baseline, horizonYears);
+
+  // Per-scenario AOP state — read from the active scenario (or null if none attached)
+  const aopState = active.aopState || null;
 
   // Country-level baselines (for the per-country breakdown panel).
   // Falls back to empty if context isn't ready.
@@ -372,12 +371,13 @@ export default function ForecastTab() {
         onDeltaChange={setSensitivityDelta}
       />
 
-      {/* AOP plan upload (affects country breakdown when loaded) */}
+      {/* AOP plan upload — attaches to the active scenario */}
       {countryBaselines.length > 0 && (
         <AOPUploader
           countryBaselines={countryBaselines}
           aopState={aopState}
-          onAopChange={setAopState}
+          onAopChange={(newAop) => setScenarioAop(activeId, newAop)}
+          activeScenarioName={active.name}
         />
       )}
 

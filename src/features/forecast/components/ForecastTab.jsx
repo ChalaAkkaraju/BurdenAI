@@ -89,7 +89,7 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color, base
 }
 
 export default function ForecastTab() {
-  const { kpis, selectedPeriod, summaryByCountry, currentUser } = useApp();
+  const { kpis, selectedPeriod, summaryByCountry, currentUser, addAuditEntry } = useApp();
 
   const { baseline, isFromContext } = useMemo(() => {
     if (kpis && kpis.totalCTC > 0 && kpis.totalHours > 0) {
@@ -198,6 +198,27 @@ export default function ForecastTab() {
       createdBy: currentUser?.name || currentUser?.email || "Anonymous",
     });
     addSnapshot(snap);
+    if (addAuditEntry) {
+      addAuditEntry({
+        action: "Save Forecast Snapshot",
+        target: name,
+        details: `Frozen ${forecastYear}${horizonYears > 1 ? `–${forecastYear + horizonYears - 1}` : ""} forecast across ${scenarios.length} scenarios`,
+        category: "Forecast",
+      });
+    }
+  };
+
+  const handleDeleteSnapshot = (id) => {
+    const snap = snapshots.find((s) => s.id === id);
+    deleteSnapshot(id);
+    if (addAuditEntry && snap) {
+      addAuditEntry({
+        action: "Delete Forecast Snapshot",
+        target: snap.name,
+        details: `Removed snapshot saved ${snap.createdAt}`,
+        category: "Forecast",
+      });
+    }
   };
 
   // Trigger a CSV download of the current forecast state.
@@ -376,7 +397,26 @@ export default function ForecastTab() {
         <AOPUploader
           countryBaselines={countryBaselines}
           aopState={aopState}
-          onAopChange={(newAop) => setScenarioAop(activeId, newAop)}
+          onAopChange={(newAop) => {
+            setScenarioAop(activeId, newAop);
+            if (addAuditEntry) {
+              if (newAop) {
+                addAuditEntry({
+                  action: "Upload Forecast AOP",
+                  target: active.name,
+                  details: `${newAop.rows?.length || 0} countries parsed from ${newAop.fileName}`,
+                  category: "Forecast",
+                });
+              } else if (aopState) {
+                addAuditEntry({
+                  action: "Clear Forecast AOP",
+                  target: active.name,
+                  details: `Removed ${aopState.fileName}`,
+                  category: "Forecast",
+                });
+              }
+            }
+          }}
           activeScenarioName={active.name}
         />
       )}
@@ -413,7 +453,7 @@ export default function ForecastTab() {
       <SnapshotsPanel
         snapshots={snapshots}
         onSave={handleSaveSnapshot}
-        onDelete={deleteSnapshot}
+        onDelete={handleDeleteSnapshot}
       />
 
       {/* Footnote */}

@@ -2,7 +2,7 @@
 // Top-level forecast view. Pulls baseline from AppContext (current period
 // kpis), manages multiple scenarios, and renders the panels.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { DollarSign, TrendingUp, Users, Calendar, AlertCircle, Download } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
@@ -16,6 +16,7 @@ import SensitivityChart from "./SensitivityChart.jsx";
 import SnapshotsPanel from "./SnapshotsPanel.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
+import { usePersistedState } from "../hooks/usePersistedState.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { runSensitivity } from "../engine/sensitivityAnalysis.js";
 import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
@@ -105,11 +106,12 @@ export default function ForecastTab() {
     return { baseline: FALLBACK_BASELINE, isFromContext: false };
   }, [kpis]);
 
-  const [horizonYears, setHorizonYears] = useState(1);
+  // Persisted user preferences — survive page refresh
+  const [horizonYears, setHorizonYears] = usePersistedState("burdenai_forecast_horizon_years", 1);
 
-  // Manual per-country driver overrides (inflation / productivity).
+  // Manual per-country driver overrides (inflation / productivity / FX). Persisted.
   // Shape: { US: { inflationPct: 4 }, IN: { inflationPct: 9, productivityPct: 5 }, ... }
-  const [manualOverrides, setManualOverrides] = useState({});
+  const [manualOverrides, setManualOverrides] = usePersistedState("burdenai_forecast_manual_overrides", {});
 
   const {
     scenarios,
@@ -174,8 +176,8 @@ export default function ForecastTab() {
     0
   );
 
-  // Sensitivity analysis on the active scenario
-  const [sensitivityDelta, setSensitivityDelta] = useState(2);
+  // Sensitivity analysis on the active scenario — delta persisted as user preference
+  const [sensitivityDelta, setSensitivityDelta] = usePersistedState("burdenai_forecast_sensitivity_delta", 2);
   const sensitivity = useMemo(
     () => runSensitivity({ baseline, drivers: active.drivers, deltaPct: sensitivityDelta }),
     [baseline, active.drivers, sensitivityDelta]

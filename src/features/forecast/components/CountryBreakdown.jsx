@@ -28,7 +28,7 @@ function deltaPct(value, base) {
   return ((value - base) / base) * 100;
 }
 
-export default function CountryBreakdown({ activeScenario, countryForecast, aopActive = false }) {
+export default function CountryBreakdown({ activeScenario, countryForecast, aopActive = false, manualOverrideCount = 0 }) {
   const [expanded, setExpanded] = useState(true);
 
   if (!countryForecast || !countryForecast.byCountry || countryForecast.byCountry.length === 0) {
@@ -59,11 +59,17 @@ export default function CountryBreakdown({ activeScenario, countryForecast, aopA
                   AOP override active
                 </span>
               )}
+              {manualOverrideCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+                  {manualOverrideCount} manual override{manualOverrideCount === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
               {activeScenario.name} scenario, broken down by geography ·{" "}
               {rows.length} countries
               {aopActive && " · AOP per-country headcount applied"}
+              {manualOverrideCount > 0 && ` · ${manualOverrideCount} per-country driver override${manualOverrideCount === 1 ? "" : "s"} applied`}
             </p>
           </div>
         </div>

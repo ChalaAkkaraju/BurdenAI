@@ -11,6 +11,7 @@ import ScenarioComparison from "./ScenarioComparison.jsx";
 import MultiYearChart from "./MultiYearChart.jsx";
 import CountryBreakdown from "./CountryBreakdown.jsx";
 import AOPUploader from "./AOPUploader.jsx";
+import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { useApp } from "../../../context/AppContext.jsx";
@@ -106,6 +107,10 @@ export default function ForecastTab() {
   // Shape: { fileName, rows, overrides } or null.
   const [aopState, setAopState] = useState(null);
 
+  // Manual per-country driver overrides (inflation / productivity).
+  // Shape: { US: { inflationPct: 4 }, IN: { inflationPct: 9, productivityPct: 5 }, ... }
+  const [manualOverrides, setManualOverrides] = useState({});
+
   const {
     scenarios,
     activeId,
@@ -131,17 +136,39 @@ export default function ForecastTab() {
       }));
   }, [summaryByCountry]);
 
+  // Merge AOP (per-country headcount delta) with manual overrides
+  // (per-country inflation / productivity). They never conflict by design —
+  // AOP supplies aopHeadcountDeltaPct, manual supplies the other two.
+  const mergedOverrides = useMemo(() => {
+    const merged = {};
+    const codes = new Set([
+      ...Object.keys(aopState?.overrides || {}),
+      ...Object.keys(manualOverrides || {}),
+    ]);
+    for (const code of codes) {
+      merged[code] = {
+        ...(manualOverrides?.[code] || {}),
+        ...(aopState?.overrides?.[code] || {}),
+      };
+    }
+    return merged;
+  }, [aopState, manualOverrides]);
+
   // Forecast for active scenario, broken down by country.
-  // If an AOP plan is loaded, its per-country headcount deltas override
-  // the scenario's slider AOP (other drivers stay scenario-level).
+  // Per-country overrides come from AOP upload + manual override panel.
   const countryForecast = useMemo(() => {
     if (countryBaselines.length === 0) return null;
     return forecastPerCountry({
       countryBaselines,
       drivers: active.drivers,
-      countryDriverOverrides: aopState ? aopState.overrides : {},
+      countryDriverOverrides: mergedOverrides,
     });
-  }, [countryBaselines, active.drivers, aopState]);
+  }, [countryBaselines, active.drivers, mergedOverrides]);
+
+  const manualOverrideCount = Object.values(manualOverrides).reduce(
+    (acc, ov) => acc + (ov?.inflationPct != null ? 1 : 0) + (ov?.productivityPct != null ? 1 : 0),
+    0
+  );
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
@@ -281,12 +308,23 @@ export default function ForecastTab() {
         />
       )}
 
+      {/* Per-country driver overrides (advanced) */}
+      {countryBaselines.length > 0 && (
+        <CountryDriverOverrides
+          countryBaselines={countryBaselines}
+          scenarioDrivers={active.drivers}
+          manualOverrides={manualOverrides}
+          onChange={setManualOverrides}
+        />
+      )}
+
       {/* Country breakdown for active scenario */}
       {countryForecast && (
         <CountryBreakdown
           activeScenario={active}
           countryForecast={countryForecast}
           aopActive={!!aopState}
+          manualOverrideCount={manualOverrideCount}
         />
       )}
 

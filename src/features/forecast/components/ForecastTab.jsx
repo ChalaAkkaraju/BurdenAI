@@ -1,16 +1,16 @@
 // ForecastTab.jsx
 // Top-level forecast view. Pulls baseline from AppContext (current period
-// kpis), feeds it into the engine, and renders the panels.
+// kpis), manages multiple scenarios, and renders the panels.
 
 import React, { useMemo } from "react";
 import { DollarSign, TrendingUp, Users, Calendar, AlertCircle } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
-import { useForecast } from "../hooks/useForecast.js";
+import ScenarioTabs from "./ScenarioTabs.jsx";
+import ScenarioComparison from "./ScenarioComparison.jsx";
+import { useScenarios } from "../hooks/useScenarios.js";
 import { useApp } from "../../../context/AppContext.jsx";
 
-// Fallback used only if context is unavailable / empty (defensive, shouldn't
-// normally hit in production).
 const FALLBACK_BASELINE = {
   totalBurden: 6_400_000,
   headcount: 456,
@@ -28,7 +28,6 @@ const formatUSD = (n) => {
 const formatRate = (n) => `$${n.toFixed(2)}/hr`;
 const formatNumber = (n) => n.toLocaleString();
 
-// "2026-03" -> { year: 2026, monthName: "March" }
 function parsePeriod(period) {
   if (!period || typeof period !== "string") return { year: null, monthName: "" };
   const [y, m] = period.split("-");
@@ -76,8 +75,6 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color, base
 export default function ForecastTab() {
   const { kpis, selectedPeriod } = useApp();
 
-  // Derive baseline from current-period KPIs. Fall back gracefully if
-  // context isn't ready or the period has no data.
   const { baseline, isFromContext } = useMemo(() => {
     if (kpis && kpis.totalCTC > 0 && kpis.totalHours > 0) {
       return {
@@ -92,7 +89,15 @@ export default function ForecastTab() {
     return { baseline: FALLBACK_BASELINE, isFromContext: false };
   }, [kpis]);
 
-  const { drivers, updateDriver, resetDrivers, result } = useForecast(baseline);
+  const {
+    scenarios,
+    activeId,
+    setActiveId,
+    active,
+    updateDriver,
+    resetScenario,
+    resetAllScenarios,
+  } = useScenarios(baseline);
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
@@ -113,8 +118,8 @@ export default function ForecastTab() {
             Forecasted burden cost
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Project next-year burden from {baselineLabel} based on inflation,
-            productivity gains, and AOP volume.
+            Compare scenarios and see how each driver mix shapes next-year
+            burden from {baselineLabel}.
           </p>
         </div>
         {!isFromContext && (
@@ -125,12 +130,31 @@ export default function ForecastTab() {
         )}
       </div>
 
-      {/* KPI row */}
+      {/* Scenario tabs */}
+      <ScenarioTabs
+        scenarios={scenarios}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onResetAll={resetAllScenarios}
+      />
+
+      {/* Active scenario header strip */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div>
+          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+            Editing
+          </span>
+          <span className="ml-2 text-base font-bold text-gray-900">{active.name}</span>
+          <span className="ml-2 text-sm text-gray-600">— {active.description}</span>
+        </div>
+      </div>
+
+      {/* KPI row (active scenario) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard
           title="Forecasted total burden"
           baseline={baseline.totalBurden}
-          forecast={result.forecastedTotal}
+          forecast={active.result.forecastedTotal}
           formatter={formatUSD}
           icon={DollarSign}
           color="bg-blue-500"
@@ -139,7 +163,7 @@ export default function ForecastTab() {
         <KPICard
           title="Forecasted burden rate"
           baseline={baseline.totalBurden / baseline.productiveHours}
-          forecast={result.forecastedRate}
+          forecast={active.result.forecastedRate}
           formatter={formatRate}
           icon={TrendingUp}
           color="bg-amber-500"
@@ -148,7 +172,7 @@ export default function ForecastTab() {
         <KPICard
           title="Forecasted headcount"
           baseline={baseline.headcount}
-          forecast={result.forecastedHeadcount}
+          forecast={active.result.forecastedHeadcount}
           formatter={formatNumber}
           icon={Users}
           color="bg-emerald-500"
@@ -156,25 +180,30 @@ export default function ForecastTab() {
         />
       </div>
 
-      {/* Drivers + waterfall */}
+      {/* Drivers + waterfall (active scenario) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <DriversPanel
-            drivers={drivers}
-            onChange={updateDriver}
-            onReset={resetDrivers}
+            drivers={active.drivers}
+            onChange={(key, value) => updateDriver(active.id, key, value)}
+            onReset={() => resetScenario(active.id)}
           />
         </div>
         <div className="lg:col-span-2">
-          <WaterfallChart waterfall={result.waterfall} />
+          <WaterfallChart waterfall={active.result.waterfall} />
         </div>
       </div>
 
+      {/* Comparison table (all scenarios) */}
+      <ScenarioComparison
+        scenarios={scenarios}
+        baseline={baseline}
+        activeId={activeId}
+      />
+
       {/* Footnote */}
       <p className="text-xs text-gray-400 italic">
-        MVP forecast — single-year, blended drivers, baseline derived from{" "}
-        {isFromContext ? `${monthName} ${baselineYear}` : "fallback reference"}.
-        Change the period selector at the top of the app to re-base. Per-country
+        MVP forecast — scenarios persist locally per browser. Per-country
         drivers, multi-year compounding, and AOP file ingest are next.
       </p>
     </div>

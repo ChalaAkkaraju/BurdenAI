@@ -13,7 +13,9 @@ import CountryBreakdown from "./CountryBreakdown.jsx";
 import AOPUploader from "./AOPUploader.jsx";
 import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
 import SensitivityChart from "./SensitivityChart.jsx";
+import SnapshotsPanel from "./SnapshotsPanel.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
+import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { runSensitivity } from "../engine/sensitivityAnalysis.js";
 import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
@@ -87,7 +89,7 @@ function KPICard({ title, baseline, forecast, formatter, icon: Icon, color, base
 }
 
 export default function ForecastTab() {
-  const { kpis, selectedPeriod, summaryByCountry } = useApp();
+  const { kpis, selectedPeriod, summaryByCountry, currentUser } = useApp();
 
   const { baseline, isFromContext } = useMemo(() => {
     if (kpis && kpis.totalCTC > 0 && kpis.totalHours > 0) {
@@ -179,6 +181,25 @@ export default function ForecastTab() {
     () => runSensitivity({ baseline, drivers: active.drivers, deltaPct: sensitivityDelta }),
     [baseline, active.drivers, sensitivityDelta]
   );
+
+  // Snapshots — frozen records of the forecast state
+  const { snapshots, addSnapshot, deleteSnapshot } = useSnapshots();
+  const handleSaveSnapshot = (name, description) => {
+    const snap = buildSnapshot({
+      name,
+      description,
+      baseline,
+      baselineLabel,
+      forecastYear,
+      horizonYears,
+      scenarios,
+      activeScenarioId: activeId,
+      manualOverrides,
+      aopState,
+      createdBy: currentUser?.name || currentUser?.email || "Anonymous",
+    });
+    addSnapshot(snap);
+  };
 
   // Trigger a CSV download of the current forecast state.
   const handleExport = () => {
@@ -387,6 +408,13 @@ export default function ForecastTab() {
           baselineYear={baselineYear || 2026}
         />
       )}
+
+      {/* Saved snapshots — frozen records for board approval / audit trail */}
+      <SnapshotsPanel
+        snapshots={snapshots}
+        onSave={handleSaveSnapshot}
+        onDelete={deleteSnapshot}
+      />
 
       {/* Footnote */}
       <p className="text-xs text-gray-400 italic">

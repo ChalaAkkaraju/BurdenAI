@@ -28,7 +28,7 @@ function deltaPct(value, base) {
   return ((value - base) / base) * 100;
 }
 
-export default function CountryBreakdown({ activeScenario, countryForecast }) {
+export default function CountryBreakdown({ activeScenario, countryForecast, aopActive = false }) {
   const [expanded, setExpanded] = useState(true);
 
   if (!countryForecast || !countryForecast.byCountry || countryForecast.byCountry.length === 0) {
@@ -50,12 +50,20 @@ export default function CountryBreakdown({ activeScenario, countryForecast }) {
           {expanded ? <ChevronDown size={18} className="text-gray-500" /> : <ChevronRight size={18} className="text-gray-500" />}
           <Globe size={18} className="text-blue-600" />
           <div className="text-left">
-            <h3 className="text-lg font-bold text-gray-900">
-              Country contribution
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900">
+                Country contribution
+              </h3>
+              {aopActive && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                  AOP override active
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
               {activeScenario.name} scenario, broken down by geography ·{" "}
               {rows.length} countries
+              {aopActive && " · AOP per-country headcount applied"}
             </p>
           </div>
         </div>

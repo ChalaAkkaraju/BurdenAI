@@ -10,6 +10,7 @@ import ScenarioTabs from "./ScenarioTabs.jsx";
 import ScenarioComparison from "./ScenarioComparison.jsx";
 import MultiYearChart from "./MultiYearChart.jsx";
 import CountryBreakdown from "./CountryBreakdown.jsx";
+import AOPUploader from "./AOPUploader.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { useApp } from "../../../context/AppContext.jsx";
@@ -100,6 +101,11 @@ export default function ForecastTab() {
 
   const [horizonYears, setHorizonYears] = useState(1);
 
+  // AOP plan upload state. When set, the country breakdown uses these
+  // per-country deltas instead of the active scenario's slider AOP.
+  // Shape: { fileName, rows, overrides } or null.
+  const [aopState, setAopState] = useState(null);
+
   const {
     scenarios,
     activeId,
@@ -126,10 +132,16 @@ export default function ForecastTab() {
   }, [summaryByCountry]);
 
   // Forecast for active scenario, broken down by country.
+  // If an AOP plan is loaded, its per-country headcount deltas override
+  // the scenario's slider AOP (other drivers stay scenario-level).
   const countryForecast = useMemo(() => {
     if (countryBaselines.length === 0) return null;
-    return forecastPerCountry({ countryBaselines, drivers: active.drivers });
-  }, [countryBaselines, active.drivers]);
+    return forecastPerCountry({
+      countryBaselines,
+      drivers: active.drivers,
+      countryDriverOverrides: aopState ? aopState.overrides : {},
+    });
+  }, [countryBaselines, active.drivers, aopState]);
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
   const forecastYear = (baselineYear || 2026) + 1;
@@ -260,11 +272,21 @@ export default function ForecastTab() {
         activeId={activeId}
       />
 
+      {/* AOP plan upload (affects country breakdown when loaded) */}
+      {countryBaselines.length > 0 && (
+        <AOPUploader
+          countryBaselines={countryBaselines}
+          aopState={aopState}
+          onAopChange={setAopState}
+        />
+      )}
+
       {/* Country breakdown for active scenario */}
       {countryForecast && (
         <CountryBreakdown
           activeScenario={active}
           countryForecast={countryForecast}
+          aopActive={!!aopState}
         />
       )}
 

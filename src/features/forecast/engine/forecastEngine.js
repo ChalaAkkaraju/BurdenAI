@@ -51,23 +51,32 @@ export function forecast({ baseline, drivers }) {
   };
 }
 
-// forecastPerCountry: apply the same drivers to each country's baseline
-// independently and return both the country-level breakdown and the rolled-up
-// totals.
+// forecastPerCountry: apply drivers to each country's baseline independently
+// and return both the country-level breakdown and the rolled-up totals.
 //
-//   countryBaselines: [{ countryCode, label?, totalBurden, headcount, productiveHours }]
-//   drivers:          { inflationPct, productivityPct, aopHeadcountDeltaPct }
+//   countryBaselines:        [{ countryCode, label?, totalBurden, headcount, productiveHours }]
+//   drivers:                 { inflationPct, productivityPct, aopHeadcountDeltaPct }
+//   countryDriverOverrides:  { US: { aopHeadcountDeltaPct: 12 }, ... }  (optional)
 //
-// For now drivers apply uniformly to every country. Per-country driver overrides
-// (e.g., 4% inflation in US vs 8% in India) are a future enhancement — the
-// per-country structure is here to support that without rework.
+// Per-country overrides win over global drivers when present. Any subset of
+// drivers can be overridden (e.g. AOP only). This is how AOP file upload
+// passes its per-country planned-headcount deltas in.
 
-export function forecastPerCountry({ countryBaselines, drivers }) {
-  const i = (drivers.inflationPct ?? 0) / 100;
-  const p = (drivers.productivityPct ?? 0) / 100;
-  const a = (drivers.aopHeadcountDeltaPct ?? 0) / 100;
+export function forecastPerCountry({
+  countryBaselines,
+  drivers,
+  countryDriverOverrides = {},
+}) {
+  const globalI = (drivers.inflationPct ?? 0) / 100;
+  const globalP = (drivers.productivityPct ?? 0) / 100;
+  const globalA = (drivers.aopHeadcountDeltaPct ?? 0) / 100;
 
   const byCountry = countryBaselines.map((cb) => {
+    const ov = countryDriverOverrides[cb.countryCode] || {};
+    const i = ov.inflationPct        != null ? ov.inflationPct        / 100 : globalI;
+    const p = ov.productivityPct     != null ? ov.productivityPct     / 100 : globalP;
+    const a = ov.aopHeadcountDeltaPct!= null ? ov.aopHeadcountDeltaPct/ 100 : globalA;
+
     const baseRate = cb.productiveHours > 0 ? cb.totalBurden / cb.productiveHours : 0;
     const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + a);
     const forecastedRate      = baseRate * (1 + i) * (1 - p);
@@ -86,6 +95,12 @@ export function forecastPerCountry({ countryBaselines, drivers }) {
       forecastedRate,
       forecastedHeadcount,
       forecastedHours,
+      driversApplied: {
+        inflationPct:         i * 100,
+        productivityPct:      p * 100,
+        aopHeadcountDeltaPct: a * 100,
+        isOverridden: Object.keys(ov).length > 0,
+      },
     };
   });
 

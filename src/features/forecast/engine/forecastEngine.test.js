@@ -177,4 +177,32 @@ describe("forecastPerCountry", () => {
     const perCountry = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
     expect(perCountry.totals.forecastedTotal).toBeCloseTo(single.forecastedTotal);
   });
+
+  it("country override replaces global driver only for that country", () => {
+    // Override US AOP to 20%; everyone else uses the 10% global default.
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers,
+      countryDriverOverrides: { US: { aopHeadcountDeltaPct: 20 } },
+    });
+    const us = r.byCountry.find((c) => c.countryCode === "US");
+    const india = r.byCountry.find((c) => c.countryCode === "IN");
+    expect(us.driversApplied.aopHeadcountDeltaPct).toBe(20);
+    expect(us.driversApplied.isOverridden).toBe(true);
+    expect(india.driversApplied.aopHeadcountDeltaPct).toBe(10);
+    expect(india.driversApplied.isOverridden).toBe(false);
+    expect(us.forecastedTotal).toBeCloseTo(4_000_000 * 1.05 * 0.97 * 1.20);
+  });
+
+  it("override can specify only a subset of drivers; others fall back", () => {
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers,
+      countryDriverOverrides: { IN: { aopHeadcountDeltaPct: 15 } }, // only AOP overridden
+    });
+    const india = r.byCountry.find((c) => c.countryCode === "IN");
+    expect(india.driversApplied.inflationPct).toBe(5);    // global
+    expect(india.driversApplied.productivityPct).toBe(3); // global
+    expect(india.driversApplied.aopHeadcountDeltaPct).toBe(15); // override
+  });
 });

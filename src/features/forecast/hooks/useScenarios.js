@@ -15,6 +15,7 @@ export const DEFAULT_SCENARIOS = [
     description: "Steady-state, uniform hires, 50% FX hedged",
     drivers: { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10, hiringRamp: 0.5, hedgeRatio: 0.5 },
     aopState: null,
+    notes: "",
   },
   {
     id: "high",
@@ -22,6 +23,7 @@ export const DEFAULT_SCENARIOS = [
     description: "Wage surge, front-loaded hiring, partial hedge",
     drivers: { inflationPct: 8, productivityPct: 2, aopHeadcountDeltaPct: 5, hiringRamp: 0.85, hedgeRatio: 0.4 },
     aopState: null,
+    notes: "",
   },
   {
     id: "low",
@@ -29,6 +31,7 @@ export const DEFAULT_SCENARIOS = [
     description: "Cooler economy, back-loaded hiring, fully hedged",
     drivers: { inflationPct: 3, productivityPct: 5, aopHeadcountDeltaPct: -5, hiringRamp: 0.25, hedgeRatio: 1.0 },
     aopState: null,
+    notes: "",
   },
 ];
 
@@ -40,12 +43,13 @@ function loadScenarios() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         // Migrate older saved scenarios that lack newer driver fields by
         // inheriting from the matching default scenario. Also ensure aopState
-        // is present (defaults to null = no AOP attached).
+        // and notes are present.
         return parsed.map((s) => {
           const def = DEFAULT_SCENARIOS.find((d) => d.id === s.id);
           return {
             ...s,
             aopState: s.aopState ?? null,
+            notes: s.notes ?? "",
             drivers: {
               ...s.drivers,
               hiringRamp: s.drivers?.hiringRamp ?? def?.drivers.hiringRamp ?? 1.0,
@@ -106,6 +110,13 @@ export function useScenarios(baseline, horizonYears = 1) {
     );
   };
 
+  // Update free-text notes for a scenario (rationale, board context, etc.)
+  const setScenarioNotes = (id, notes) => {
+    setScenarios((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, notes } : s))
+    );
+  };
+
   const resetScenario = (id) => {
     const def = DEFAULT_SCENARIOS.find((d) => d.id === id);
     if (!def) return;
@@ -126,6 +137,7 @@ export function useScenarios(baseline, horizonYears = 1) {
     active,
     updateDriver,
     setScenarioAop,
+    setScenarioNotes,
     resetScenario,
     resetAllScenarios,
   };

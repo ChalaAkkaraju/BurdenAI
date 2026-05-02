@@ -120,6 +120,7 @@ export default function ForecastTab() {
     active,
     updateDriver,
     setScenarioAop,
+    setScenarioNotes,
     resetScenario,
     resetAllScenarios,
   } = useScenarios(baseline, horizonYears);
@@ -324,15 +325,24 @@ export default function ForecastTab() {
         onResetAll={resetAllScenarios}
       />
 
-      {/* Active scenario header strip */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between">
-        <div>
-          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-            Editing
-          </span>
-          <span className="ml-2 text-base font-bold text-gray-900">{active.name}</span>
-          <span className="ml-2 text-sm text-gray-600">— {active.description}</span>
+      {/* Active scenario header strip + notes */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+              Editing
+            </span>
+            <span className="ml-2 text-base font-bold text-gray-900">{active.name}</span>
+            <span className="ml-2 text-sm text-gray-600">— {active.description}</span>
+          </div>
         </div>
+        <textarea
+          value={active.notes ?? ""}
+          onChange={(e) => setScenarioNotes(activeId, e.target.value)}
+          placeholder={`Notes for ${active.name} — rationale, board context, key assumptions… (saved with the scenario)`}
+          rows={2}
+          className="w-full px-3 py-2 text-sm bg-white border border-blue-200 rounded-md text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-y"
+        />
       </div>
 
       {/* KPI row (active scenario) */}

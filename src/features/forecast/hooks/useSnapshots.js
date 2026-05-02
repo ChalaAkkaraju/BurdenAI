@@ -54,6 +54,7 @@ export function buildSnapshot({
       id: s.id,
       name: s.name,
       description: s.description,
+      notes: s.notes ?? "",
       drivers: { ...s.drivers },
       aopState: s.aopState ? {
         fileName: s.aopState.fileName,

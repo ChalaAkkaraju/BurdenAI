@@ -20,7 +20,7 @@ import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { runSensitivity } from "../engine/sensitivityAnalysis.js";
-import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
+import { downloadForecastXlsx } from "../engine/forecastXlsxExporter.js";
 import { useApp } from "../../../context/AppContext.jsx";
 
 const HORIZON_OPTIONS = [
@@ -251,9 +251,12 @@ export default function ForecastTab() {
     }
   };
 
-  // Trigger a CSV download of the current forecast state.
+  // Trigger an Excel download of the current forecast state. The xlsx
+  // exporter produces a multi-sheet workbook (Summary, Scenarios, Country
+  // breakdown, Manual overrides) with proper number formatting so finance
+  // can drop it straight into a board pack.
   const handleExport = () => {
-    const csv = buildForecastCsv({
+    downloadForecastXlsx({
       scenarios,
       activeScenario: active,
       countryForecast,
@@ -261,20 +264,16 @@ export default function ForecastTab() {
       baselineLabel,
       forecastYear,
       horizonYears,
+      manualOverrides,
     });
-    const filename = buildForecastFilename({
-      forecastYear,
-      scenarioName: active.name,
-    });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (addAuditEntry) {
+      addAuditEntry({
+        action: "Export Forecast",
+        target: active.name,
+        details: `Excel export — ${scenarios.length} scenario${scenarios.length === 1 ? "" : "s"}, ${horizonYears}yr horizon`,
+        category: "Forecast",
+      });
+    }
   };
 
   const { year: baselineYear, monthName } = parsePeriod(selectedPeriod);
@@ -348,14 +347,14 @@ export default function ForecastTab() {
               })}
             </div>
           </div>
-          {/* Export button */}
+          {/* Export button — multi-sheet Excel workbook */}
           <button
             onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition"
-            title="Export forecast as CSV"
+            title="Export forecast as Excel (Summary, Scenarios, Country breakdown, Overrides)"
           >
             <Download size={14} />
-            Export CSV
+            Export Excel
           </button>
           {/* Print button — uses browser print dialog with print-specific CSS */}
           <button

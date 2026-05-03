@@ -6,7 +6,7 @@
 
 import React, { useState } from "react";
 import { Archive, Plus, Download, Trash2, ChevronDown, ChevronRight, Calendar, User, Eye, RotateCcw, FileText } from "lucide-react";
-import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
+import { downloadForecastXlsx } from "../engine/forecastXlsxExporter.js";
 
 const formatUSD = (n) => {
   if (n === null || n === undefined || isNaN(n)) return "$0";
@@ -30,32 +30,32 @@ const formatRelativeTime = (iso) => {
   return then.toLocaleDateString();
 };
 
-function downloadSnapshotCsv(snapshot) {
-  const csv = buildForecastCsv({
-    scenarios: snapshot.scenarios.map((s) => ({
-      ...s,
-      result: {
-        forecastedTotal: s.forecastedTotal,
-        forecastedRate: s.forecastedRate,
-        forecastedHeadcount: s.forecastedHeadcount,
-      },
-    })),
-    activeScenario: snapshot.scenarios.find((s) => s.id === snapshot.activeScenarioId) || snapshot.scenarios[0],
-    baseline: snapshot.baseline,
-    baselineLabel: snapshot.baselineLabel || "snapshot baseline",
-    forecastYear: snapshot.forecastYear,
-    horizonYears: snapshot.horizonYears,
-  });
-  const filename = buildForecastFilename({
-    forecastYear: snapshot.forecastYear,
-    scenarioName: `snapshot-${snapshot.name}`,
-  });
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+// Reshape snapshot scenarios so the xlsx exporter sees the same `result`
+// shape as a live forecast (totals stored flat on each scenario in the
+// snapshot, but exporter expects scenario.result.forecastedTotal etc.).
+function downloadSnapshotXlsx(snapshot) {
+  const scenarios = snapshot.scenarios.map((s) => ({
+    ...s,
+    result: {
+      forecastedTotal: s.forecastedTotal,
+      forecastedRate: s.forecastedRate,
+      forecastedHeadcount: s.forecastedHeadcount,
+    },
+  }));
+  const activeScenario = scenarios.find((s) => s.id === snapshot.activeScenarioId) || scenarios[0];
+  downloadForecastXlsx(
+    {
+      scenarios,
+      activeScenario,
+      baseline: snapshot.baseline,
+      baselineLabel: snapshot.baselineLabel || "snapshot baseline",
+      forecastYear: snapshot.forecastYear,
+      horizonYears: snapshot.horizonYears,
+      manualOverrides: snapshot.manualOverrides,
+      generatedAt: snapshot.createdAt,
+    },
+    `burdenai-forecast-snapshot-${snapshot.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${(snapshot.createdAt || new Date().toISOString()).slice(0, 10)}.xlsx`,
+  );
 }
 
 export default function SnapshotsPanel({ snapshots, onSave, onDelete, onRestore }) {
@@ -230,9 +230,9 @@ export default function SnapshotsPanel({ snapshots, onSave, onDelete, onRestore 
                           <RotateCcw size={14} />
                         </button>
                         <button
-                          onClick={() => downloadSnapshotCsv(snap)}
+                          onClick={() => downloadSnapshotXlsx(snap)}
                           className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition"
-                          title="Download as CSV"
+                          title="Download as Excel"
                         >
                           <Download size={14} />
                         </button>

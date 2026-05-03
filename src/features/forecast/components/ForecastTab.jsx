@@ -14,6 +14,7 @@ import AOPUploader from "./AOPUploader.jsx";
 import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
 import SensitivityChart from "./SensitivityChart.jsx";
 import SnapshotsPanel from "./SnapshotsPanel.jsx";
+import PrintView from "./PrintView.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
 import { usePersistedState } from "../hooks/usePersistedState.js";
@@ -283,7 +284,23 @@ export default function ForecastTab() {
     : "reference period";
 
   return (
-    <div className="p-5 space-y-4">
+    <>
+    {/* ============ PRINT-ONLY VIEW (hidden on screen) ============ */}
+    <div className="print-only">
+      <PrintView
+        baseline={baseline}
+        baselineLabel={baselineLabel}
+        forecastYear={forecastYear}
+        horizonYears={horizonYears}
+        active={active}
+        scenarios={scenarios}
+        countryForecast={countryForecast}
+        currentUser={currentUser}
+      />
+    </div>
+
+    {/* ============ INTERACTIVE SCREEN VIEW (hidden when printing) ============ */}
+    <div className="screen-only p-5 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -504,5 +521,6 @@ export default function ForecastTab() {
         drivers, multi-year compounding, and AOP file ingest are next.
       </p>
     </div>
+    </>
   );
 }

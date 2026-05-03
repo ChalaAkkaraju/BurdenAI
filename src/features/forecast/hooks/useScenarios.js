@@ -130,6 +130,18 @@ export function useScenarios(baseline, horizonYears = 1) {
     setActiveId("base");
   };
 
+  // Replace the entire scenarios array with a new set (used by snapshot restore).
+  // Caller is responsible for providing well-shaped scenario objects.
+  const replaceAllScenarios = (newScenarios, newActiveId) => {
+    if (!Array.isArray(newScenarios) || newScenarios.length === 0) return;
+    setScenarios(newScenarios);
+    if (newActiveId && newScenarios.find((s) => s.id === newActiveId)) {
+      setActiveId(newActiveId);
+    } else {
+      setActiveId(newScenarios[0].id);
+    }
+  };
+
   return {
     scenarios: scenarioResults,
     activeId,
@@ -140,5 +152,6 @@ export function useScenarios(baseline, horizonYears = 1) {
     setScenarioNotes,
     resetScenario,
     resetAllScenarios,
+    replaceAllScenarios,
   };
 }

@@ -123,6 +123,7 @@ export default function ForecastTab() {
     setScenarioNotes,
     resetScenario,
     resetAllScenarios,
+    replaceAllScenarios,
   } = useScenarios(baseline, horizonYears);
 
   // Per-scenario AOP state — read from the active scenario (or null if none attached)
@@ -219,6 +220,31 @@ export default function ForecastTab() {
         action: "Delete Forecast Snapshot",
         target: snap.name,
         details: `Removed snapshot saved ${snap.createdAt}`,
+        category: "Forecast",
+      });
+    }
+  };
+
+  const handleRestoreSnapshot = (snap) => {
+    // Reconstruct full scenario shape (snapshot scenarios omit `result` —
+    // useScenarios will recompute results from drivers via the engine).
+    const restoredScenarios = snap.scenarios.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      drivers: { ...s.drivers },
+      aopState: s.aopState ?? null,
+      notes: s.notes ?? "",
+    }));
+    replaceAllScenarios(restoredScenarios, snap.activeScenarioId);
+    if (snap.manualOverrides) {
+      setManualOverrides({ ...snap.manualOverrides });
+    }
+    if (addAuditEntry) {
+      addAuditEntry({
+        action: "Restore Forecast Snapshot",
+        target: snap.name,
+        details: `Restored frozen state from ${snap.createdAt} — overwrote current scenarios + overrides`,
         category: "Forecast",
       });
     }
@@ -469,6 +495,7 @@ export default function ForecastTab() {
         snapshots={snapshots}
         onSave={handleSaveSnapshot}
         onDelete={handleDeleteSnapshot}
+        onRestore={handleRestoreSnapshot}
       />
 
       {/* Footnote */}

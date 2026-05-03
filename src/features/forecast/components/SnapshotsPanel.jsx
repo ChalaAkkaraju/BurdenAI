@@ -5,7 +5,7 @@
 // underlying data has moved.
 
 import React, { useState } from "react";
-import { Archive, Plus, Download, Trash2, ChevronDown, ChevronRight, Calendar, User } from "lucide-react";
+import { Archive, Plus, Download, Trash2, ChevronDown, ChevronRight, Calendar, User, Eye, RotateCcw, FileText } from "lucide-react";
 import { buildForecastCsv, buildForecastFilename } from "../engine/forecastExporter.js";
 
 const formatUSD = (n) => {
@@ -58,11 +58,12 @@ function downloadSnapshotCsv(snapshot) {
   URL.revokeObjectURL(url);
 }
 
-export default function SnapshotsPanel({ snapshots, onSave, onDelete }) {
+export default function SnapshotsPanel({ snapshots, onSave, onDelete, onRestore }) {
   const [expanded, setExpanded] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [openSnapshotId, setOpenSnapshotId] = useState(null); // for view detail expansion
 
   const handleSave = () => {
     if (!draftName.trim()) return;
@@ -176,8 +177,10 @@ export default function SnapshotsPanel({ snapshots, onSave, onDelete }) {
             <tbody>
               {snapshots.map((snap) => {
                 const activeScenario = snap.scenarios.find((s) => s.id === snap.activeScenarioId) || snap.scenarios[0];
+                const isOpen = openSnapshotId === snap.id;
                 return (
-                  <tr key={snap.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <React.Fragment key={snap.id}>
+                  <tr className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-2.5 px-2">
                       <div className="font-medium text-gray-900">{snap.name}</div>
                       {snap.description && (
@@ -205,7 +208,27 @@ export default function SnapshotsPanel({ snapshots, onSave, onDelete }) {
                       {formatUSD(activeScenario?.forecastedTotal)}
                     </td>
                     <td className="py-2.5 px-2">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setOpenSnapshotId(isOpen ? null : snap.id)}
+                          className={`p-1.5 rounded-md transition ${isOpen ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"}`}
+                          title={isOpen ? "Hide details" : "View frozen state"}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(
+                              `Restore snapshot "${snap.name}"?\n\nThis will replace your current scenarios with the frozen state from ${formatRelativeTime(snap.createdAt)}.`
+                            )) {
+                              onRestore?.(snap);
+                            }
+                          }}
+                          className="p-1.5 rounded-md text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition"
+                          title="Restore: replace current scenarios with this snapshot"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
                         <button
                           onClick={() => downloadSnapshotCsv(snap)}
                           className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition"
@@ -223,6 +246,49 @@ export default function SnapshotsPanel({ snapshots, onSave, onDelete }) {
                       </div>
                     </td>
                   </tr>
+                  {isOpen && (
+                    <tr className="border-b border-gray-100 bg-indigo-50/30">
+                      <td colSpan={6} className="px-4 py-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="uppercase tracking-wider font-semibold text-indigo-700">Frozen state</span>
+                            <span>·</span>
+                            <span>Baseline {formatUSD(snap.baseline.totalBurden)} · {snap.baseline.headcount} HC · {snap.baseline.productiveHours.toLocaleString()} hrs</span>
+                            <span>·</span>
+                            <span>{snap.baselineLabel}</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {snap.scenarios.map((s) => (
+                              <div key={s.id} className={`rounded-md border p-2.5 text-xs ${s.id === snap.activeScenarioId ? "border-indigo-300 bg-white" : "border-gray-200 bg-white"}`}>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="font-semibold text-gray-900">{s.name}</span>
+                                  {s.id === snap.activeScenarioId && (
+                                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] uppercase tracking-wider font-semibold">Active</span>
+                                  )}
+                                  {s.aopState && (
+                                    <FileText size={10} className="text-emerald-600" title={`AOP: ${s.aopState.fileName}`} />
+                                  )}
+                                </div>
+                                <div className="font-mono text-gray-700 text-xs space-y-0.5">
+                                  <div>Inflation: {s.drivers.inflationPct}% · Productivity: {s.drivers.productivityPct}% · AOP: {s.drivers.aopHeadcountDeltaPct >= 0 ? "+" : ""}{s.drivers.aopHeadcountDeltaPct}%</div>
+                                  <div>Ramp: {s.drivers.hiringRamp ?? 1} · Hedge: {s.drivers.hedgeRatio ?? 0}</div>
+                                  <div className="pt-1 mt-1 border-t border-gray-100">
+                                    <span className="text-gray-500">Total:</span> <span className="font-bold text-gray-900">{formatUSD(s.forecastedTotal)}</span>
+                                    {" · "}
+                                    <span className="text-gray-500">Rate:</span> <span className="text-gray-900">${(s.forecastedRate ?? 0).toFixed(2)}/hr</span>
+                                  </div>
+                                </div>
+                                {s.notes && (
+                                  <div className="mt-2 pt-2 border-t border-gray-100 text-gray-600 italic">"{s.notes}"</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

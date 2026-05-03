@@ -25,6 +25,12 @@ const Sidebar = ({ activePage, onNavigate }) => {
       ],
     },
     {
+      section: 'PLANNING',
+      items: [
+        { id: 'forecast', label: 'Forecast', icon: TrendingUp },
+      ],
+    },
+    {
       section: 'DATA',
       items: [
         { id: 'roster', label: 'Employee Roster', icon: Users },
@@ -43,12 +49,6 @@ const Sidebar = ({ activePage, onNavigate }) => {
       section: 'PROCESSING',
       items: [
         { id: 'calculations', label: 'Calculation Runs', icon: Calculator },
-      ],
-    },
-    {
-      section: 'PLANNING',
-      items: [
-        { id: 'forecast', label: 'Forecast', icon: TrendingUp },
       ],
     },
     {

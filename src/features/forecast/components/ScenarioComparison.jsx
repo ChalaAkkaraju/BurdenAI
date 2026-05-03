@@ -2,7 +2,8 @@
 // Side-by-side comparison table for all scenarios. The screenshot for the
 // exec deck.
 
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 const formatUSD = (n) => {
   if (n === null || n === undefined || isNaN(n)) return "$0";
@@ -22,18 +23,32 @@ function deltaPct(value, base) {
 }
 
 export default function ScenarioComparison({ scenarios, baseline, activeId }) {
+  const [expanded, setExpanded] = useState(true);
+
   const baseTotal = baseline.totalBurden;
   const baseRate  = baseline.totalBurden / baseline.productiveHours;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-bold text-gray-900">Scenario comparison</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Side-by-side view of every saved scenario versus current baseline
-        </p>
-      </div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
+      >
+        <div className="flex items-center gap-2">
+          {expanded ? <ChevronDown size={18} className="text-gray-500" /> : <ChevronRight size={18} className="text-gray-500" />}
+          <div className="text-left">
+            <h3 className="text-lg font-bold text-gray-900">Scenario comparison</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Side-by-side view of every saved scenario versus current baseline
+            </p>
+          </div>
+        </div>
+        <div className="text-xs text-gray-400">
+          {scenarios.length} scenarios
+        </div>
+      </button>
 
+      {expanded && (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -161,6 +176,7 @@ export default function ScenarioComparison({ scenarios, baseline, activeId }) {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

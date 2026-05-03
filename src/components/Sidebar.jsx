@@ -60,7 +60,7 @@ const Sidebar = ({ activePage, onNavigate }) => {
   ];
 
   return (
-    <aside className="w-60 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm">
+    <aside className="w-60 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm print:hidden">
       {/* Logo Area */}
       <div className="px-6 py-6 border-b border-gray-200 flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">

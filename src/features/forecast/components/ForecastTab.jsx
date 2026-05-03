@@ -3,7 +3,7 @@
 // kpis), manages multiple scenarios, and renders the panels.
 
 import React, { useMemo } from "react";
-import { DollarSign, TrendingUp, Users, Calendar, AlertCircle, Download } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Calendar, AlertCircle, Download, Printer } from "lucide-react";
 import DriversPanel from "./DriversPanel.jsx";
 import WaterfallChart from "./WaterfallChart.jsx";
 import ScenarioTabs from "./ScenarioTabs.jsx";
@@ -314,6 +314,15 @@ export default function ForecastTab() {
             <Download size={14} />
             Export CSV
           </button>
+          {/* Print button — uses browser print dialog with print-specific CSS */}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition no-print"
+            title="Print or save as PDF — expand any sections you want to include first"
+          >
+            <Printer size={14} />
+            Print
+          </button>
         </div>
       </div>
 
@@ -376,19 +385,13 @@ export default function ForecastTab() {
         />
       </div>
 
-      {/* Drivers + waterfall (active scenario) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <DriversPanel
-            drivers={active.drivers}
-            onChange={(key, value) => updateDriver(active.id, key, value)}
-            onReset={() => resetScenario(active.id)}
-          />
-        </div>
-        <div className="lg:col-span-2">
-          <WaterfallChart waterfall={active.result.waterfall} />
-        </div>
-      </div>
+      {/* Drivers full-width on top, waterfall full-width below */}
+      <DriversPanel
+        drivers={active.drivers}
+        onChange={(key, value) => updateDriver(active.id, key, value)}
+        onReset={() => resetScenario(active.id)}
+      />
+      <WaterfallChart waterfall={active.result.waterfall} />
 
       {/* Comparison table (all scenarios) */}
       <ScenarioComparison

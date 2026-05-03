@@ -1,23 +1,11 @@
 // WaterfallChart.jsx
-// Renders a waterfall chart from the forecast engine's `waterfall` array.
-//
-// Recharts trick: stack two bar series.
-//   - "base" is invisible (transparent) and carries the running total floor.
-//   - "delta" is visible and shows the contribution of each step.
-// Anchor bars (Current, Forecast) sit on the floor (base = 0) and span 0..value.
+// "Bridge flow" representation — each step is a card with the running total,
+// and each transition shows the driver name + delta. Reads left-to-right
+// like a narrative, which is far more accessible for executive audiences
+// than a stacked-bar waterfall.
 
 import React from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-} from "recharts";
+import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 
 const formatUSD = (n) => {
   if (n === null || n === undefined || isNaN(n)) return "$0";
@@ -27,102 +15,146 @@ const formatUSD = (n) => {
   return `${n < 0 ? "-" : ""}$${abs.toFixed(0)}`;
 };
 
-// Convert engine waterfall into Recharts-friendly data with `base` and `delta`.
-function buildChartData(waterfall) {
-  const data = [];
-  let runningPrev = 0;
-
-  for (const step of waterfall) {
-    if (step.kind === "anchor") {
-      // Anchors (Current, Forecast) sit on zero floor, span 0..value
-      data.push({
-        label: step.label,
-        base: 0,
-        delta: step.value,
-        kind: "anchor",
-        signed: step.value,
-      });
-      runningPrev = step.cumulative;
-    } else {
-      // Deltas: float between previous cumulative and new cumulative
-      const isPositive = step.value >= 0;
-      const base = isPositive ? runningPrev : runningPrev + step.value; // negative starts lower
-      data.push({
-        label: step.label,
-        base,
-        delta: Math.abs(step.value),
-        kind: isPositive ? "positive" : "negative",
-        signed: step.value,
-      });
-      runningPrev = step.cumulative;
-    }
-  }
-  return data;
-}
-
-const COLORS = {
-  anchor: "#1e293b",   // slate-800
-  positive: "#dc2626", // red-600 (cost going up = bad)
-  negative: "#059669", // emerald-600 (cost going down = good)
-};
-
-const renderTooltip = ({ active, payload }) => {
-  if (!active || !payload || payload.length === 0) return null;
-  const row = payload[0].payload;
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-3 py-2 text-sm">
-      <p className="font-semibold text-gray-900">{row.label}</p>
-      <p className="text-gray-600 font-mono">{formatUSD(row.signed)}</p>
-    </div>
-  );
+const formatDelta = (n) => {
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${formatUSD(n)}`;
 };
 
 export default function WaterfallChart({ waterfall }) {
-  const data = buildChartData(waterfall);
+  if (!waterfall || waterfall.length === 0) return null;
+
+  const anchors = waterfall.filter((s) => s.kind === "anchor");
+  const start = anchors[0];
+  const end = anchors[anchors.length - 1];
+  const totalDelta = end.cumulative - start.cumulative;
+  const totalPct = start.cumulative > 0 ? (totalDelta / start.cumulative) * 100 : 0;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-900">
-          Forecast waterfall
-        </h3>
-        <p className="text-xs text-gray-500 mt-1">
-          How each driver contributes to the forecasted total burden
-        </p>
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Forecast bridge</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            How each driver moves baseline burden to the forecast
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Net change</div>
+          <div className={`text-lg font-bold font-mono ${totalDelta >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+            {formatDelta(totalDelta)} <span className="text-sm">({totalDelta >= 0 ? "+" : ""}{totalPct.toFixed(1)}%)</span>
+          </div>
+        </div>
       </div>
 
-      <div style={{ width: "100%", height: 380 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 24, right: 24, left: 8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 12, fill: "#475569" }}
-              axisLine={{ stroke: "#cbd5e1" }}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={formatUSD}
-              tick={{ fontSize: 11, fill: "#64748b" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip content={renderTooltip} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-            <Bar dataKey="base" stackId="wf" fill="transparent" />
-            <Bar dataKey="delta" stackId="wf" radius={[4, 4, 0, 0]}>
-              {data.map((d, idx) => (
-                <Cell key={idx} fill={COLORS[d.kind]} />
-              ))}
-              <LabelList
-                dataKey="signed"
-                position="top"
-                formatter={formatUSD}
-                style={{ fontSize: 11, fontWeight: 600, fill: "#1e293b" }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Horizontal flow — wraps gracefully on narrow viewports */}
+      <div className="flex items-stretch gap-1 overflow-x-auto pb-2">
+        {waterfall.map((step, idx) => {
+          const isAnchor = step.kind === "anchor";
+          const isLast = idx === waterfall.length - 1;
+          const isPositive = step.value >= 0;
+
+          if (isAnchor) {
+            return (
+              <React.Fragment key={idx}>
+                <div className="flex-shrink-0 min-w-[140px] flex flex-col items-center justify-center p-3 rounded-lg bg-slate-800 text-white shadow-md">
+                  <div className="text-xs font-medium text-slate-300 uppercase tracking-wider mb-1">
+                    {step.label}
+                  </div>
+                  <div className="text-2xl font-bold font-mono">
+                    {formatUSD(step.cumulative)}
+                  </div>
+                </div>
+                {!isLast && (
+                  <div className="flex-shrink-0 flex items-center justify-center px-1">
+                    <ArrowRight size={20} className="text-gray-300" />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          }
+
+          // Delta step — colored card showing driver contribution
+          const bgColor = isPositive ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200";
+          const textColor = isPositive ? "text-red-700" : "text-emerald-700";
+          const iconColor = isPositive ? "text-red-500" : "text-emerald-500";
+          const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+
+          return (
+            <React.Fragment key={idx}>
+              <div className={`flex-shrink-0 min-w-[140px] flex flex-col items-center justify-center p-3 rounded-lg border ${bgColor}`}>
+                <div className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider mb-1 ${textColor}`}>
+                  <TrendIcon size={11} className={iconColor} />
+                  {step.label.replace(/^[+-]\s*/, "")}
+                </div>
+                <div className={`text-xl font-bold font-mono ${textColor}`}>
+                  {formatDelta(step.value)}
+                </div>
+                <div className="text-xs text-gray-500 font-mono mt-1">
+                  → {formatUSD(step.cumulative)}
+                </div>
+              </div>
+              {!isLast && (
+                <div className="flex-shrink-0 flex items-center justify-center px-1">
+                  <ArrowRight size={20} className="text-gray-300" />
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Small running-total trend visualization at the bottom */}
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <div className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">Running total trajectory</div>
+        <Sparkline waterfall={waterfall} />
       </div>
     </div>
+  );
+}
+
+// Tiny inline SVG sparkline — running total at each step, color-coded segments.
+function Sparkline({ waterfall }) {
+  const W = 600;
+  const H = 60;
+  const PAD = 12;
+  const points = waterfall.map((s) => s.cumulative);
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const stepX = (W - PAD * 2) / (points.length - 1 || 1);
+
+  const xy = points.map((p, i) => ({
+    x: PAD + i * stepX,
+    y: PAD + (1 - (p - min) / range) * (H - PAD * 2),
+  }));
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ maxWidth: "100%" }}>
+      {/* Segments: each colored by direction of change */}
+      {xy.slice(0, -1).map((p, i) => {
+        const next = xy[i + 1];
+        const delta = points[i + 1] - points[i];
+        const stroke = Math.abs(delta) < 1e-6 ? "#94a3b8" : delta > 0 ? "#dc2626" : "#059669";
+        return (
+          <line
+            key={i}
+            x1={p.x} y1={p.y} x2={next.x} y2={next.y}
+            stroke={stroke}
+            strokeWidth={2.5}
+          />
+        );
+      })}
+      {/* Dots at each point */}
+      {xy.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={4} fill="#1e293b" />
+      ))}
+      {/* Labels: first and last only, to keep it clean */}
+      <text x={xy[0].x} y={H - 1} fontSize="10" fill="#64748b" textAnchor="start">
+        {waterfall[0].label}
+      </text>
+      <text x={xy[xy.length - 1].x} y={H - 1} fontSize="10" fill="#64748b" textAnchor="end">
+        {waterfall[waterfall.length - 1].label}
+      </text>
+    </svg>
   );
 }

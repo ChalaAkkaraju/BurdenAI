@@ -71,54 +71,55 @@ const driverConfig = [
 
 export default function DriversPanel({ drivers, onChange, onReset }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900">Forecast drivers</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Adjust to see how the forecast changes
-          </p>
-        </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Forecast drivers</h3>
         <button
           onClick={onReset}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition"
+          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition"
+          title="Reset this scenario to defaults"
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={12} />
           Reset
         </button>
       </div>
 
-      <div className="space-y-6">
+      {/* 5 drivers as horizontal cards — wraps to 2-3 cols on narrower screens */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {driverConfig.map((cfg) => {
           const Icon = cfg.icon;
           const value = drivers[cfg.key] ?? 0;
           return (
-            <div key={cfg.key}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg ${cfg.bg}`}>
-                    <Icon size={14} className={cfg.accent} />
-                  </div>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {cfg.label}
-                  </span>
+            <div
+              key={cfg.key}
+              title={cfg.helper}
+              className="border border-gray-100 rounded-lg p-2.5 hover:border-gray-300 transition bg-gray-50/40"
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className={`p-1 rounded ${cfg.bg}`}>
+                  <Icon size={12} className={cfg.accent} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={value}
-                    onChange={(e) =>
-                      onChange(cfg.key, parseFloat(e.target.value) || 0)
-                    }
-                    min={cfg.min}
-                    max={cfg.max}
-                    step={cfg.step}
-                    className="w-20 px-2 py-1 text-sm font-mono text-right border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-                  />
+                <span className="text-xs font-semibold text-gray-900 truncate">
+                  {cfg.label}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1 mb-1.5">
+                <input
+                  type="number"
+                  value={value}
+                  onChange={(e) =>
+                    onChange(cfg.key, parseFloat(e.target.value) || 0)
+                  }
+                  min={cfg.min}
+                  max={cfg.max}
+                  step={cfg.step}
+                  className="w-full px-1.5 py-0.5 text-base font-bold font-mono text-gray-900 text-center bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                />
+                {cfg.suffix && (
                   <span className="text-sm text-gray-500 font-medium">
                     {cfg.suffix}
                   </span>
-                </div>
+                )}
               </div>
               <input
                 type="range"
@@ -129,14 +130,8 @@ export default function DriversPanel({ drivers, onChange, onReset }) {
                 onChange={(e) =>
                   onChange(cfg.key, parseFloat(e.target.value))
                 }
-                className="w-full accent-blue-600"
+                className="w-full accent-blue-600 h-1"
               />
-              <div className="flex justify-between mt-1">
-                <p className="text-xs text-gray-500">{cfg.helper}</p>
-                <p className="text-xs text-gray-400 font-mono">
-                  {cfg.min}{cfg.suffix} — {cfg.max}{cfg.suffix}
-                </p>
-              </div>
             </div>
           );
         })}

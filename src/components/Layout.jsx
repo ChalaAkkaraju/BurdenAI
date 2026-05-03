@@ -19,7 +19,7 @@ const Layout = ({ children, activePage, setActivePage }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shadow-sm">
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shadow-sm print:hidden">
           {/* Left Side - Title and Subtitle */}
           <div className="flex flex-col">
             <h1 className="text-sm text-gray-500 font-medium tracking-wide">

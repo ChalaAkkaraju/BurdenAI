@@ -71,3 +71,75 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ===== Print styles =====
+ * Goal: produce a clean board-ready PDF when the user hits Ctrl+P.
+ * The user should manually expand any collapsible panels they want printed
+ * before invoking the print dialog.
+ */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.4in 0.4in 0.5in 0.4in;
+  }
+
+  /* Hide everything chrome — sidebar, app header, and any element
+     explicitly marked as no-print. */
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Make the main content fill the page edge-to-edge with no scroll. */
+  body, #root, main {
+    background: #ffffff !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+
+  /* Cards / panels: white bg, light borders, no drop shadows, avoid
+     page-break-inside so a card doesn't split awkwardly across pages. */
+  .bg-white, .bg-blue-50, .bg-gray-50, .bg-amber-50,
+  .bg-emerald-50, .bg-purple-50, .bg-indigo-50 {
+    background: #ffffff !important;
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Recharts containers — ensure they render at print resolution. */
+  .recharts-wrapper, .recharts-surface {
+    overflow: visible !important;
+  }
+
+  /* Buttons / interactive controls: hide unless explicitly print-safe. */
+  button, .no-print-control {
+    /* leave button text visible but suppress shadows and hover states */
+    box-shadow: none !important;
+  }
+
+  /* Input fields (sliders, text inputs) — collapse to readable text. */
+  input[type="range"] {
+    display: none !important;
+  }
+
+  /* Avoid breaking inside table rows */
+  tr, td, th {
+    page-break-inside: avoid;
+  }
+
+  /* Force colors to render (Chrome respects this for backgrounds) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide save-snapshot / export / reset buttons in print to keep the page clean */
+  .print-hide-action {
+    display: none !important;
+  }
+}

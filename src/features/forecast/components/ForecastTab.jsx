@@ -14,6 +14,7 @@ import AOPUploader from "./AOPUploader.jsx";
 import CountryDriverOverrides from "./CountryDriverOverrides.jsx";
 import SensitivityChart from "./SensitivityChart.jsx";
 import SnapshotsPanel from "./SnapshotsPanel.jsx";
+import ErpExportPanel from "./ErpExportPanel.jsx";
 import PrintView from "./PrintView.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
@@ -512,6 +513,23 @@ export default function ForecastTab() {
         onSave={handleSaveSnapshot}
         onDelete={handleDeleteSnapshot}
         onRestore={handleRestoreSnapshot}
+      />
+
+      {/* ERP export — Phase 1: KP26 flexible-upload CSV. No backend yet. */}
+      <ErpExportPanel
+        countryForecast={countryForecast}
+        forecastYear={forecastYear}
+        scenarioName={active.name}
+        onAuditExport={(info) => {
+          if (addAuditEntry) {
+            addAuditEntry({
+              action: "Export Forecast to SAP",
+              target: `${info.format} · ${info.planVersion} · FY${info.fiscalYear}`,
+              details: `${info.rowCount} cost centers exported${info.unmappedCount > 0 ? `, ${info.unmappedCount} unmapped` : ""} — file: ${info.filename}`,
+              category: "Forecast",
+            });
+          }
+        }}
       />
 
       {/* Footnote */}

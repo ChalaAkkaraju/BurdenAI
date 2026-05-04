@@ -642,7 +642,7 @@ const Dashboard = () => {
             <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart data={verticalChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }} barCategoryGap="20%" maxBarSize={60}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" stroke="#9ca3af" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} interval={0} />
                 <YAxis stroke="#9ca3af" tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}/hr`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}

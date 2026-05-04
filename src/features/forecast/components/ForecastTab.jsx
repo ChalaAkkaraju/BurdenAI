@@ -299,11 +299,11 @@ export default function ForecastTab() {
     </div>
 
     {/* ============ INTERACTIVE SCREEN VIEW (hidden when printing) ============ */}
-    <div className="screen-only p-5 space-y-4">
+    <div className="screen-only p-6 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             <Calendar size={12} />
             Forecast · {forecastYear}
             {horizonYears > 1 && ` – ${forecastYear + horizonYears - 1}`}

@@ -41,12 +41,12 @@ const USERS_KEY = 'burden_users_registry';
 // '*' means access to every page.
 export const ROLE_PERMISSIONS = {
   'Admin (Global)':  ['*'],
-  'Finance':         ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
-  'HR':              ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
-  'Regional Lead':   ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
-  'US Manager':      ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
-  'APAC Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
-  'EMEA Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations'],
+  'Finance':         ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
+  'HR':              ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
+  'Regional Lead':   ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
+  'US Manager':      ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
+  'APAC Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
+  'EMEA Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
   'Analyst':         ['dashboard', 'reports', 'roster', 'rawdata'],
   'Viewer':          ['dashboard', 'reports'],
 };

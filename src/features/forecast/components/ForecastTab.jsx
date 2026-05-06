@@ -19,7 +19,6 @@ import PrintView from "./PrintView.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
 import { usePersistedState } from "../hooks/usePersistedState.js";
-import { forecastPerCountry } from "../engine/forecastEngine.js";
 import { runSensitivity } from "../engine/sensitivityAnalysis.js";
 import { downloadForecastXlsx } from "../engine/forecastXlsxExporter.js";
 import { useApp } from "../../../context/AppContext.jsx";
@@ -115,24 +114,8 @@ export default function ForecastTab() {
   // Shape: { US: { inflationPct: 4 }, IN: { inflationPct: 9, productivityPct: 5 }, ... }
   const [manualOverrides, setManualOverrides] = usePersistedState("burdenai_forecast_manual_overrides", {});
 
-  const {
-    scenarios,
-    activeId,
-    setActiveId,
-    active,
-    updateDriver,
-    setScenarioAop,
-    setScenarioNotes,
-    resetScenario,
-    resetAllScenarios,
-    replaceAllScenarios,
-  } = useScenarios(baseline, horizonYears);
-
-  // Per-scenario AOP state — read from the active scenario (or null if none attached)
-  const aopState = active.aopState || null;
-
-  // Country-level baselines (for the per-country breakdown panel).
-  // Falls back to empty if context isn't ready.
+  // Country-level baselines (for the per-country breakdown panel and bridge roll-up).
+  // Computed before useScenarios so they can be passed in for the country-up path.
   const countryBaselines = useMemo(() => {
     if (!summaryByCountry || summaryByCountry.length === 0) return [];
     return summaryByCountry
@@ -146,9 +129,29 @@ export default function ForecastTab() {
       }));
   }, [summaryByCountry]);
 
-  // Merge AOP (per-country headcount delta) with manual overrides
-  // (per-country inflation / productivity). They never conflict by design —
-  // AOP supplies aopHeadcountDeltaPct, manual supplies the other two.
+  const {
+    scenarios,
+    activeId,
+    setActiveId,
+    active,
+    updateDriver,
+    setScenarioAop,
+    setScenarioNotes,
+    resetScenario,
+    resetAllScenarios,
+    replaceAllScenarios,
+  } = useScenarios(baseline, horizonYears, countryBaselines, manualOverrides);
+
+  // Per-scenario AOP state — read from the active scenario (or null if none attached)
+  const aopState = active.aopState || null;
+
+  // Active scenario's per-country forecast comes directly from useScenarios.
+  // It's the same data the bridge / KPIs are computed from, so the country
+  // breakdown table always reconciles with the bridge total.
+  const countryForecast = active.countryForecast;
+
+  // Active scenario's merged overrides (for AOPUploader's per-country preview).
+  // Same logic the hook uses internally; recomputed here for the UI panels.
   const mergedOverrides = useMemo(() => {
     const merged = {};
     const codes = new Set([
@@ -163,17 +166,6 @@ export default function ForecastTab() {
     }
     return merged;
   }, [aopState, manualOverrides]);
-
-  // Forecast for active scenario, broken down by country.
-  // Per-country overrides come from AOP upload + manual override panel.
-  const countryForecast = useMemo(() => {
-    if (countryBaselines.length === 0) return null;
-    return forecastPerCountry({
-      countryBaselines,
-      drivers: active.drivers,
-      countryDriverOverrides: mergedOverrides,
-    });
-  }, [countryBaselines, active.drivers, mergedOverrides]);
 
   const manualOverrideCount = Object.values(manualOverrides).reduce(
     (acc, ov) => acc + (ov?.inflationPct != null ? 1 : 0) + (ov?.productivityPct != null ? 1 : 0),
@@ -433,8 +425,24 @@ export default function ForecastTab() {
         drivers={active.drivers}
         onChange={(key, value) => updateDriver(active.id, key, value)}
         onReset={() => resetScenario(active.id)}
+        manualOverrides={manualOverrides}
+        onScrollToCountryPanel={() => {
+          const el = document.getElementById("country-overrides-panel");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
       />
       <WaterfallChart waterfall={active.result.waterfall} />
+
+      {/* Per-country driver overrides — sits right below the bridge so global
+          + per-country drivers are visible together. Collapsed by default. */}
+      {countryBaselines.length > 0 && (
+        <CountryDriverOverrides
+          countryBaselines={countryBaselines}
+          scenarioDrivers={active.drivers}
+          manualOverrides={manualOverrides}
+          onChange={setManualOverrides}
+        />
+      )}
 
       {/* Comparison table (all scenarios) */}
       <ScenarioComparison
@@ -476,16 +484,6 @@ export default function ForecastTab() {
             }
           }}
           activeScenarioName={active.name}
-        />
-      )}
-
-      {/* Per-country driver overrides (advanced) */}
-      {countryBaselines.length > 0 && (
-        <CountryDriverOverrides
-          countryBaselines={countryBaselines}
-          scenarioDrivers={active.drivers}
-          manualOverrides={manualOverrides}
-          onChange={setManualOverrides}
         />
       )}
 

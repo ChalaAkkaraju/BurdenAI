@@ -431,10 +431,9 @@ export default function ForecastTab() {
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
       />
-      <WaterfallChart waterfall={active.result.waterfall} />
-
-      {/* Per-country driver overrides — sits right below the bridge so global
-          + per-country drivers are visible together. Collapsed by default. */}
+      {/* Per-country driver overrides — sits between global drivers and the
+          bridge so both driver sources are visible together. Collapsed by
+          default to keep the bridge in view. */}
       {countryBaselines.length > 0 && (
         <CountryDriverOverrides
           countryBaselines={countryBaselines}
@@ -443,6 +442,8 @@ export default function ForecastTab() {
           onChange={setManualOverrides}
         />
       )}
+
+      <WaterfallChart waterfall={active.result.waterfall} />
 
       {/* Comparison table (all scenarios) */}
       <ScenarioComparison

@@ -37,14 +37,18 @@ export default function CountryDriverOverrides({
   const overrideCount = Object.keys(manualOverrides).reduce((acc, code) => {
     const ov = manualOverrides[code];
     return acc
-      + (ov?.inflationPct    != null ? 1 : 0)
-      + (ov?.productivityPct != null ? 1 : 0)
-      + (ov?.fxChangePct     != null ? 1 : 0);
+      + (ov?.inflationPct         != null ? 1 : 0)
+      + (ov?.productivityPct      != null ? 1 : 0)
+      + (ov?.aopHeadcountDeltaPct != null ? 1 : 0)
+      + (ov?.hiringRamp           != null ? 1 : 0)
+      + (ov?.fxChangePct          != null ? 1 : 0);
   }, 0);
 
-  const inflationOverrides    = Object.values(manualOverrides).filter((o) => o?.inflationPct    != null).length;
-  const productivityOverrides = Object.values(manualOverrides).filter((o) => o?.productivityPct != null).length;
-  const fxOverrides           = Object.values(manualOverrides).filter((o) => o?.fxChangePct     != null).length;
+  const inflationOverrides    = Object.values(manualOverrides).filter((o) => o?.inflationPct         != null).length;
+  const productivityOverrides = Object.values(manualOverrides).filter((o) => o?.productivityPct      != null).length;
+  const aopOverrides          = Object.values(manualOverrides).filter((o) => o?.aopHeadcountDeltaPct != null).length;
+  const rampOverrides         = Object.values(manualOverrides).filter((o) => o?.hiringRamp           != null).length;
+  const fxOverrides           = Object.values(manualOverrides).filter((o) => o?.fxChangePct          != null).length;
 
   const updateField = (code, key, raw) => {
     const next = { ...manualOverrides };
@@ -84,9 +88,11 @@ export default function CountryDriverOverrides({
   const requestClearCountry = (countryCode) => {
     const ov = manualOverrides[countryCode] || {};
     const fields = [];
-    if (ov.inflationPct != null)    fields.push({ key: "inflationPct",    label: "Inflation",    value: ov.inflationPct,    fallback: scenarioDrivers.inflationPct });
-    if (ov.productivityPct != null) fields.push({ key: "productivityPct", label: "Productivity", value: ov.productivityPct, fallback: scenarioDrivers.productivityPct });
-    if (ov.fxChangePct != null)     fields.push({ key: "fxChangePct",     label: "FX change",    value: ov.fxChangePct,     fallback: 0 });
+    if (ov.inflationPct         != null) fields.push({ key: "inflationPct",         label: "Inflation",     value: ov.inflationPct,         fallback: scenarioDrivers.inflationPct,         suffix: "%" });
+    if (ov.productivityPct      != null) fields.push({ key: "productivityPct",      label: "Productivity",  value: ov.productivityPct,      fallback: scenarioDrivers.productivityPct,      suffix: "%" });
+    if (ov.aopHeadcountDeltaPct != null) fields.push({ key: "aopHeadcountDeltaPct", label: "AOP HC delta",  value: ov.aopHeadcountDeltaPct, fallback: scenarioDrivers.aopHeadcountDeltaPct, suffix: "%" });
+    if (ov.hiringRamp           != null) fields.push({ key: "hiringRamp",           label: "Hiring ramp",   value: ov.hiringRamp,           fallback: scenarioDrivers.hiringRamp ?? 1,      suffix: "" });
+    if (ov.fxChangePct          != null) fields.push({ key: "fxChangePct",          label: "FX change",     value: ov.fxChangePct,          fallback: 0,                                     suffix: "%" });
     if (fields.length === 0) return;
     setPendingClear({ countryCode, label: COUNTRY_NAME[countryCode] || countryCode, fields });
   };
@@ -111,7 +117,7 @@ export default function CountryDriverOverrides({
           <div className="text-left">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-gray-900">
-                Country drivers
+                Country level drivers
               </h3>
               {overrideCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200">
@@ -121,8 +127,8 @@ export default function CountryDriverOverrides({
             </div>
             <p className="text-xs text-gray-500 mt-0.5 text-left">
               {overrideCount === 0
-                ? "Override inflation, productivity, or FX change per country. Blank = inherit global default."
-                : `${inflationOverrides} inflation · ${productivityOverrides} productivity · ${fxOverrides} FX — applied to bridge, KPIs, country breakdown.`}
+                ? "Override any global driver per country. Blank = inherit global default."
+                : `${inflationOverrides} inflation · ${productivityOverrides} productivity · ${aopOverrides} AOP · ${rampOverrides} ramp · ${fxOverrides} FX — applied to bridge, KPIs, country breakdown.`}
             </p>
           </div>
         </div>
@@ -161,6 +167,8 @@ export default function CountryDriverOverrides({
                   <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baseline</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Inflation %</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Productivity %</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">AOP HC %</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring ramp</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">FX change %</th>
                   <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Status</th>
                 </tr>
@@ -170,15 +178,21 @@ export default function CountryDriverOverrides({
                   const ov = manualOverrides[cb.countryCode] || {};
                   const inflPlaceholder = `${scenarioDrivers.inflationPct}`;
                   const prodPlaceholder = `${scenarioDrivers.productivityPct}`;
+                  const aopPlaceholder  = `${scenarioDrivers.aopHeadcountDeltaPct}`;
+                  const rampPlaceholder = `${scenarioDrivers.hiringRamp ?? 1}`;
                   const fxPlaceholder = `0`;
-                  const inflVal = ov.inflationPct != null ? ov.inflationPct : "";
-                  const prodVal = ov.productivityPct != null ? ov.productivityPct : "";
-                  const fxVal   = ov.fxChangePct != null ? ov.fxChangePct : "";
-                  const inflOverridden = ov.inflationPct != null;
-                  const prodOverridden = ov.productivityPct != null;
-                  const fxOverridden   = ov.fxChangePct != null;
-                  const anyOverridden  = inflOverridden || prodOverridden || fxOverridden;
-                  const inputBase = "w-20 px-2 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200";
+                  const inflVal = ov.inflationPct         != null ? ov.inflationPct         : "";
+                  const prodVal = ov.productivityPct      != null ? ov.productivityPct      : "";
+                  const aopVal  = ov.aopHeadcountDeltaPct != null ? ov.aopHeadcountDeltaPct : "";
+                  const rampVal = ov.hiringRamp           != null ? ov.hiringRamp           : "";
+                  const fxVal   = ov.fxChangePct          != null ? ov.fxChangePct          : "";
+                  const inflOverridden = ov.inflationPct         != null;
+                  const prodOverridden = ov.productivityPct      != null;
+                  const aopOverridden  = ov.aopHeadcountDeltaPct != null;
+                  const rampOverridden = ov.hiringRamp           != null;
+                  const fxOverridden   = ov.fxChangePct          != null;
+                  const anyOverridden  = inflOverridden || prodOverridden || aopOverridden || rampOverridden || fxOverridden;
+                  const inputBase = "w-16 px-1.5 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200";
                   const inputOverride = "border-purple-300 bg-purple-50 text-purple-900 font-semibold";
                   const inputDefault  = "border-gray-200 bg-white text-gray-900";
                   return (
@@ -208,6 +222,25 @@ export default function CountryDriverOverrides({
                             className={`${inputBase} ${prodOverridden ? inputOverride : inputDefault}`}
                           />
                           <span className="text-xs text-gray-400">%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number" step="1" value={aopVal} placeholder={aopPlaceholder}
+                            onChange={(e) => updateField(cb.countryCode, "aopHeadcountDeltaPct", e.target.value)}
+                            className={`${inputBase} ${aopOverridden ? inputOverride : inputDefault}`}
+                          />
+                          <span className="text-xs text-gray-400">%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number" step="0.05" min="0" max="1" value={rampVal} placeholder={rampPlaceholder}
+                            onChange={(e) => updateField(cb.countryCode, "hiringRamp", e.target.value)}
+                            className={`${inputBase} ${rampOverridden ? inputOverride : inputDefault}`}
+                          />
                         </div>
                       </td>
                       <td className="py-2 px-2">

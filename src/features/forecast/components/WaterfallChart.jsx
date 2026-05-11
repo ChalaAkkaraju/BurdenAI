@@ -78,10 +78,11 @@ export default function WaterfallChart({ waterfall }) {
           const textColor = isPositive ? "text-red-700" : "text-emerald-700";
           const iconColor = isPositive ? "text-red-500" : "text-emerald-500";
           const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+          const hasBreakdown = Array.isArray(step.breakdown) && step.breakdown.length > 0;
 
           return (
             <React.Fragment key={idx}>
-              <div className={`flex-shrink-0 min-w-[140px] flex flex-col items-center justify-center p-3 rounded-lg border ${bgColor}`}>
+              <div className={`group relative flex-shrink-0 min-w-[140px] flex flex-col items-center justify-center p-3 rounded-lg border ${bgColor}`}>
                 <div className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider mb-1 ${textColor}`}>
                   <TrendIcon size={11} className={iconColor} />
                   {step.label.replace(/^[+-]\s*/, "")}
@@ -92,6 +93,29 @@ export default function WaterfallChart({ waterfall }) {
                 <div className="text-xs text-gray-500 font-mono mt-1">
                   → {formatUSD(step.cumulative)}
                 </div>
+                {hasBreakdown && (
+                  <>
+                    <div className="text-[9px] text-gray-400 mt-1 italic">hover for detail</div>
+                    <div className="hidden group-hover:block absolute z-20 top-full left-1/2 -translate-x-1/2 mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-xl p-2 text-left">
+                      <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        Per-country breakdown
+                      </div>
+                      <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                        {step.breakdown.slice(0, 8).map((b) => (
+                          <div key={b.countryCode} className="flex items-baseline justify-between text-xs">
+                            <span className="text-gray-700">{b.label}</span>
+                            <span className={`font-mono font-semibold ${b.delta >= 0 ? "text-red-700" : "text-emerald-700"}`}>
+                              {formatDelta(b.delta)}
+                            </span>
+                          </div>
+                        ))}
+                        {step.breakdown.length > 8 && (
+                          <div className="text-[10px] text-gray-400 italic">+ {step.breakdown.length - 8} more</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               {!isLast && (
                 <div className="flex-shrink-0 flex items-center justify-center px-1">

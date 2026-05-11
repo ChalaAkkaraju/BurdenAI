@@ -124,11 +124,29 @@ export function forecastPerCountry({
     const aCost = a * ramp;
 
     const baseRate = cb.productiveHours > 0 ? cb.totalBurden / cb.productiveHours : 0;
-    const forecastedTotal     = cb.totalBurden * (1 + i) * (1 - p) * (1 + aCost) * (1 + fxImpact);
+
+    // Sequential composition (matches forecast() exactly so country roll-up
+    // adds back to the same global figure when there are no overrides).
+    const afterInflation     = cb.totalBurden * (1 + i);
+    const afterProductivity  = afterInflation * (1 - p);
+    const afterAop           = afterProductivity * (1 + aCost);
+    const afterFx            = afterAop * (1 + fxImpact);
+
+    const forecastedTotal     = afterFx;
     const forecastedRate      = baseRate * (1 + i) * (1 - p) * (1 + fxImpact);
     const forecastedHeadcount = Math.round(cb.headcount * (1 + a));      // year-end
     const avgFTE              = cb.headcount * (1 + aCost);              // cost-bearing
     const forecastedHours     = cb.productiveHours * (1 + aCost);
+
+    // Per-country contributions to each waterfall step. Aggregated below to
+    // produce the bridge that reflects every country's drivers.
+    const stepDeltas = {
+      inflation:    afterInflation    - cb.totalBurden,
+      productivity: afterProductivity - afterInflation,
+      aop:          afterAop          - afterProductivity,
+      fx:           afterFx           - afterAop,
+    };
+
     return {
       countryCode: cb.countryCode,
       label: cb.label || cb.countryCode,
@@ -143,6 +161,7 @@ export function forecastPerCountry({
       forecastedHeadcount,
       avgFTE,
       forecastedHours,
+      stepDeltas, // for bridge tooltips
       driversApplied: {
         inflationPct:         i * 100,
         productivityPct:      p * 100,
@@ -178,6 +197,52 @@ export function forecastPerCountry({
     ? totals.forecastedTotal / totals.forecastedHours
     : 0;
 
+  // ===== Aggregated waterfall (the bridge the UI shows) =====
+  // Sum each country's per-step delta. With per-country overrides, this
+  // captures what each driver step contributes across the whole org.
+  const stepTotals = enriched.reduce(
+    (acc, c) => ({
+      inflation:    acc.inflation    + c.stepDeltas.inflation,
+      productivity: acc.productivity + c.stepDeltas.productivity,
+      aop:          acc.aop          + c.stepDeltas.aop,
+      fx:           acc.fx           + c.stepDeltas.fx,
+    }),
+    { inflation: 0, productivity: 0, aop: 0, fx: 0 }
+  );
+
+  const baselineTotal = totals.baselineTotal;
+  const aggAfterInfl  = baselineTotal + stepTotals.inflation;
+  const aggAfterProd  = aggAfterInfl  + stepTotals.productivity;
+  const aggAfterAop   = aggAfterProd  + stepTotals.aop;
+  const aggAfterFx    = aggAfterAop   + stepTotals.fx;
+
+  // Per-country breakdown for each step (label + delta) — used by bridge
+  // tooltips to show "Inflation: US +$167K, India +$44K, ...".
+  const breakdownFor = (key) =>
+    enriched
+      .filter((c) => Math.abs(c.stepDeltas[key]) > 1e-3)
+      .map((c) => ({ countryCode: c.countryCode, label: c.label, delta: c.stepDeltas[key] }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  const waterfall = [
+    { label: "Current",        value: baselineTotal,         cumulative: baselineTotal, kind: "anchor" },
+    { label: "+ Inflation",    value: stepTotals.inflation,  cumulative: aggAfterInfl,  kind: "delta", breakdown: breakdownFor("inflation") },
+    { label: "- Productivity", value: stepTotals.productivity, cumulative: aggAfterProd, kind: "delta", breakdown: breakdownFor("productivity") },
+    { label: "+ AOP volume",   value: stepTotals.aop,        cumulative: aggAfterAop,   kind: "delta", breakdown: breakdownFor("aop") },
+  ];
+  if (Math.abs(stepTotals.fx) > 1e-3) {
+    waterfall.push({
+      label: stepTotals.fx >= 0 ? "+ FX (unhedged)" : "- FX (unhedged)",
+      value: stepTotals.fx,
+      cumulative: aggAfterFx,
+      kind: "delta",
+      breakdown: breakdownFor("fx"),
+    });
+  }
+  waterfall.push({
+    label: "Forecast", value: aggAfterFx, cumulative: aggAfterFx, kind: "anchor",
+  });
+
   return {
     byCountry: enriched,
     totals: {
@@ -187,6 +252,7 @@ export function forecastPerCountry({
       forecastedHours:     totals.forecastedHours,
       baselineTotal:       totals.baselineTotal,
     },
+    waterfall,
   };
 }
 

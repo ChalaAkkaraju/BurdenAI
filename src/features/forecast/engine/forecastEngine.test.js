@@ -325,3 +325,106 @@ describe("forecastPerCountry", () => {
     expect(r.byCountry[0].avgFTE).toBeCloseTo(200 * 1.05);
   });
 });
+
+describe("forecastPerCountry — country-up bridge (waterfall aggregation)", () => {
+  const sampleCountries = [
+    { countryCode: "US", label: "USA", totalBurden: 4_000_000, headcount: 200, productiveHours: 36_000 },
+    { countryCode: "IN", label: "India", totalBurden: 1_500_000, headcount: 180, productiveHours: 32_000 },
+    { countryCode: "DE", label: "Germany", totalBurden:   900_000, headcount:  76, productiveHours: 15_000 },
+  ];
+  const drivers = { inflationPct: 5, productivityPct: 3, aopHeadcountDeltaPct: 10 };
+
+  it("returns a waterfall array on the result", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    expect(Array.isArray(r.waterfall)).toBe(true);
+    expect(r.waterfall.length).toBeGreaterThanOrEqual(5); // anchor + 3 steps + anchor
+  });
+
+  it("waterfall first/last anchors equal baseline total / forecast total", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const start = r.waterfall.find((s) => s.kind === "anchor");
+    const end = r.waterfall[r.waterfall.length - 1];
+    expect(start.cumulative).toBeCloseTo(r.totals.baselineTotal);
+    expect(end.cumulative).toBeCloseTo(r.totals.forecastedTotal);
+  });
+
+  it("waterfall delta steps sum exactly to (forecast − baseline)", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const deltaSum = r.waterfall
+      .filter((s) => s.kind === "delta")
+      .reduce((acc, s) => acc + s.value, 0);
+    expect(deltaSum).toBeCloseTo(r.totals.forecastedTotal - r.totals.baselineTotal);
+  });
+
+  it("FX step appears in waterfall when any country has FX impact", () => {
+    const drs = { ...drivers, hedgeRatio: 0.5 };
+    const overrides = { IN: { fxChangePct: 5 } };
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers: drs,
+      countryDriverOverrides: overrides,
+    });
+    const fxStep = r.waterfall.find((s) => s.label.includes("FX"));
+    expect(fxStep).toBeDefined();
+    expect(fxStep.value).toBeGreaterThan(0);
+  });
+
+  it("FX step omitted when no country has any FX change", () => {
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers,
+    });
+    const fxStep = r.waterfall.find((s) => s.label.includes("FX"));
+    expect(fxStep).toBeUndefined();
+  });
+
+  it("each delta step has a breakdown array with one entry per country that contributed", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const inflationStep = r.waterfall.find((s) => s.label === "+ Inflation");
+    expect(inflationStep.breakdown).toBeDefined();
+    expect(inflationStep.breakdown).toHaveLength(3);
+    // Sum of breakdown deltas equals the step's total delta
+    const breakdownSum = inflationStep.breakdown.reduce((acc, b) => acc + b.delta, 0);
+    expect(breakdownSum).toBeCloseTo(inflationStep.value);
+  });
+
+  it("waterfall reflects per-country overrides (India inflation 8% lifts the inflation step)", () => {
+    const baseRun = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    const baseStep = baseRun.waterfall.find((s) => s.label === "+ Inflation");
+
+    const ovRun = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers,
+      countryDriverOverrides: { IN: { inflationPct: 8 } },
+    });
+    const ovStep = ovRun.waterfall.find((s) => s.label === "+ Inflation");
+
+    // India override should add (8% − 5%) of India's $1.5M baseline = $45K to the inflation step
+    expect(ovStep.value).toBeGreaterThan(baseStep.value);
+    expect(ovStep.value - baseStep.value).toBeCloseTo(1_500_000 * 0.03, -2);
+  });
+
+  it("country-up total equals sum of byCountry forecastedTotal (reconciles)", () => {
+    const r = forecastPerCountry({
+      countryBaselines: sampleCountries,
+      drivers: { ...drivers, hedgeRatio: 0.5 },
+      countryDriverOverrides: { IN: { fxChangePct: 5 } },
+    });
+    const sum = r.byCountry.reduce((acc, c) => acc + c.forecastedTotal, 0);
+    expect(r.totals.forecastedTotal).toBeCloseTo(sum);
+    // And waterfall's last anchor matches
+    const last = r.waterfall[r.waterfall.length - 1];
+    expect(last.cumulative).toBeCloseTo(sum);
+  });
+
+  it("each country has stepDeltas (per-country contribution to each waterfall step)", () => {
+    const r = forecastPerCountry({ countryBaselines: sampleCountries, drivers });
+    for (const c of r.byCountry) {
+      expect(c.stepDeltas).toBeDefined();
+      expect(typeof c.stepDeltas.inflation).toBe("number");
+      expect(typeof c.stepDeltas.productivity).toBe("number");
+      expect(typeof c.stepDeltas.aop).toBe("number");
+      expect(typeof c.stepDeltas.fx).toBe("number");
+    }
+  });
+});

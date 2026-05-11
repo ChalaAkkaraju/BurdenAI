@@ -4,7 +4,7 @@
 // edited / shown in detail.
 
 import { useEffect, useMemo, useState } from "react";
-import { forecast, forecastMultiYear } from "../engine/forecastEngine.js";
+import { forecast, forecastMultiYear, forecastPerCountry } from "../engine/forecastEngine.js";
 
 const STORAGE_KEY = "burdenai_forecast_scenarios";
 
@@ -65,7 +65,7 @@ function loadScenarios() {
   return DEFAULT_SCENARIOS;
 }
 
-export function useScenarios(baseline, horizonYears = 1) {
+export function useScenarios(baseline, horizonYears = 1, countryBaselines = null, manualOverrides = {}) {
   const [scenarios, setScenarios] = useState(loadScenarios);
   const [activeId, setActiveId] = useState(scenarios[0]?.id || "base");
 
@@ -79,16 +79,60 @@ export function useScenarios(baseline, horizonYears = 1) {
   }, [scenarios]);
 
   // Compute forecast result + multi-year trajectory for every scenario.
-  // `result` is the year-1 forecast (for the waterfall + KPIs of the active
-  // scenario); `trajectory` is the [year 0 .. year N] series for charts.
+  //
+  // When countryBaselines is provided, results come from forecastPerCountry
+  // so the bridge / KPIs / scenario comparison all reflect per-country
+  // overrides (country-up). Each scenario merges its own AOP overrides with
+  // the app-level manualOverrides, so non-active scenarios still see their
+  // own AOP file applied.
+  //
+  // When countryBaselines is omitted, we fall back to the simpler global
+  // forecast — used by tests and any future caller without geography.
   const scenarioResults = useMemo(
     () =>
-      scenarios.map((s) => ({
-        ...s,
-        result: forecast({ baseline, drivers: s.drivers }),
-        trajectory: forecastMultiYear({ baseline, drivers: s.drivers, years: horizonYears }),
-      })),
-    [scenarios, baseline, horizonYears]
+      scenarios.map((s) => {
+        const useCountryUp = Array.isArray(countryBaselines) && countryBaselines.length > 0;
+        let result;
+        let countryForecast = null;
+        if (useCountryUp) {
+          // Merge this scenario's AOP overrides with the app-level manual
+          // overrides. AOP supplies aopHeadcountDeltaPct; manual supplies
+          // inflationPct / productivityPct / fxChangePct / hiringRamp.
+          const mergedOverrides = {};
+          const codes = new Set([
+            ...Object.keys(s.aopState?.overrides || {}),
+            ...Object.keys(manualOverrides || {}),
+          ]);
+          for (const code of codes) {
+            mergedOverrides[code] = {
+              ...(manualOverrides?.[code] || {}),
+              ...(s.aopState?.overrides?.[code] || {}),
+            };
+          }
+          const cf = forecastPerCountry({
+            countryBaselines,
+            drivers: s.drivers,
+            countryDriverOverrides: mergedOverrides,
+          });
+          countryForecast = cf;
+          result = {
+            forecastedTotal:     cf.totals.forecastedTotal,
+            forecastedRate:      cf.totals.forecastedRate,
+            forecastedHeadcount: cf.totals.forecastedHeadcount,
+            forecastedHours:     cf.totals.forecastedHours,
+            waterfall:           cf.waterfall,
+          };
+        } else {
+          result = forecast({ baseline, drivers: s.drivers });
+        }
+        return {
+          ...s,
+          result,
+          countryForecast,
+          trajectory: forecastMultiYear({ baseline, drivers: s.drivers, years: horizonYears }),
+        };
+      }),
+    [scenarios, baseline, horizonYears, countryBaselines, manualOverrides]
   );
 
   const active =

@@ -1,12 +1,14 @@
 // CountryDriverOverrides.jsx
-// Advanced panel for setting per-country inflation and productivity overrides.
-// Empty input = inherit scenario default. Any value = country-specific override.
+// First-class panel for per-country driver overrides (inflation, productivity,
+// FX change). Empty input = inherit global default. Any value = country
+// override that flows into the bridge, KPIs, scenario comparison — and locks
+// the matching global slider so country-level work can't be overwritten.
 //
 // AOP headcount overrides come from the AOP uploader (separate concern), so
-// this panel only exposes inflation + productivity per country.
+// this panel only exposes inflation / productivity / FX per country.
 
 import React, { useState } from "react";
-import { Sliders, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
+import { Sliders, ChevronDown, ChevronRight, RotateCcw, X, AlertCircle } from "lucide-react";
 
 const COUNTRY_NAME = {
   US: "USA", IN: "India", GB: "UK", DE: "Germany",
@@ -27,21 +29,26 @@ export default function CountryDriverOverrides({
   manualOverrides,
   onChange,
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false); // collapsed by default — keep page compact
+  const [pendingClear, setPendingClear] = useState(null); // { countryCode, label, fields: [{ key, label, value }] }
 
   if (!countryBaselines || countryBaselines.length === 0) return null;
 
   const overrideCount = Object.keys(manualOverrides).reduce((acc, code) => {
     const ov = manualOverrides[code];
     return acc
-      + (ov?.inflationPct    != null ? 1 : 0)
-      + (ov?.productivityPct != null ? 1 : 0)
-      + (ov?.fxChangePct     != null ? 1 : 0);
+      + (ov?.inflationPct         != null ? 1 : 0)
+      + (ov?.productivityPct      != null ? 1 : 0)
+      + (ov?.aopHeadcountDeltaPct != null ? 1 : 0)
+      + (ov?.hiringRamp           != null ? 1 : 0)
+      + (ov?.fxChangePct          != null ? 1 : 0);
   }, 0);
 
-  const inflationOverrides    = Object.values(manualOverrides).filter((o) => o?.inflationPct    != null).length;
-  const productivityOverrides = Object.values(manualOverrides).filter((o) => o?.productivityPct != null).length;
-  const fxOverrides           = Object.values(manualOverrides).filter((o) => o?.fxChangePct     != null).length;
+  const inflationOverrides    = Object.values(manualOverrides).filter((o) => o?.inflationPct         != null).length;
+  const productivityOverrides = Object.values(manualOverrides).filter((o) => o?.productivityPct      != null).length;
+  const aopOverrides          = Object.values(manualOverrides).filter((o) => o?.aopHeadcountDeltaPct != null).length;
+  const rampOverrides         = Object.values(manualOverrides).filter((o) => o?.hiringRamp           != null).length;
+  const fxOverrides           = Object.values(manualOverrides).filter((o) => o?.fxChangePct          != null).length;
 
   const updateField = (code, key, raw) => {
     const next = { ...manualOverrides };
@@ -77,8 +84,29 @@ export default function CountryDriverOverrides({
 
   const clearAll = () => onChange({});
 
+  // Open the confirmation modal listing every override on a country row.
+  const requestClearCountry = (countryCode) => {
+    const ov = manualOverrides[countryCode] || {};
+    const fields = [];
+    if (ov.inflationPct         != null) fields.push({ key: "inflationPct",         label: "Inflation",     value: ov.inflationPct,         fallback: scenarioDrivers.inflationPct,         suffix: "%" });
+    if (ov.productivityPct      != null) fields.push({ key: "productivityPct",      label: "Productivity",  value: ov.productivityPct,      fallback: scenarioDrivers.productivityPct,      suffix: "%" });
+    if (ov.aopHeadcountDeltaPct != null) fields.push({ key: "aopHeadcountDeltaPct", label: "AOP HC delta",  value: ov.aopHeadcountDeltaPct, fallback: scenarioDrivers.aopHeadcountDeltaPct, suffix: "%" });
+    if (ov.hiringRamp           != null) fields.push({ key: "hiringRamp",           label: "Hiring ramp",   value: ov.hiringRamp,           fallback: scenarioDrivers.hiringRamp ?? 1,      suffix: "" });
+    if (ov.fxChangePct          != null) fields.push({ key: "fxChangePct",          label: "FX change",     value: ov.fxChangePct,          fallback: 0,                                     suffix: "%" });
+    if (fields.length === 0) return;
+    setPendingClear({ countryCode, label: COUNTRY_NAME[countryCode] || countryCode, fields });
+  };
+
+  const confirmClearCountry = () => {
+    if (!pendingClear) return;
+    const next = { ...manualOverrides };
+    delete next[pendingClear.countryCode];
+    onChange(next);
+    setPendingClear(null);
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <div id="country-overrides-panel" className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between hover:opacity-80 transition"
@@ -89,26 +117,24 @@ export default function CountryDriverOverrides({
           <div className="text-left">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-gray-900">
-                Per-country driver overrides
+                Country level drivers
               </h3>
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
-                Advanced
-              </span>
               {overrideCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
-                  {overrideCount} active
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200">
+                  {overrideCount} override{overrideCount === 1 ? "" : "s"}
+                  {(inflationOverrides + productivityOverrides + aopOverrides + rampOverrides) > 0 && " · sliders locked"}
                 </span>
               )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5 text-left">
               {overrideCount === 0
-                ? "Override inflation, productivity, or FX change per country. Empty = inherit scenario default."
-                : `${inflationOverrides} inflation, ${productivityOverrides} productivity, ${fxOverrides} FX overridden`}
+                ? "Override any global driver per country. Blank = inherit global default."
+                : `${inflationOverrides} inflation · ${productivityOverrides} productivity · ${aopOverrides} AOP · ${rampOverrides} ramp · ${fxOverrides} FX — applied to bridge, KPIs, country breakdown.`}
             </p>
           </div>
         </div>
         <div className="text-right text-xs text-gray-500">
-          Scenario default: {scenarioDrivers.inflationPct}% inflation · {scenarioDrivers.productivityPct}% productivity
+          Global default: {scenarioDrivers.inflationPct}% inflation · {scenarioDrivers.productivityPct}% productivity
         </div>
       </button>
 
@@ -142,7 +168,10 @@ export default function CountryDriverOverrides({
                   <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baseline</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Inflation %</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Productivity %</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">AOP HC %</th>
+                  <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring ramp</th>
                   <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">FX change %</th>
+                  <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -150,18 +179,25 @@ export default function CountryDriverOverrides({
                   const ov = manualOverrides[cb.countryCode] || {};
                   const inflPlaceholder = `${scenarioDrivers.inflationPct}`;
                   const prodPlaceholder = `${scenarioDrivers.productivityPct}`;
+                  const aopPlaceholder  = `${scenarioDrivers.aopHeadcountDeltaPct}`;
+                  const rampPlaceholder = `${scenarioDrivers.hiringRamp ?? 1}`;
                   const fxPlaceholder = `0`;
-                  const inflVal = ov.inflationPct != null ? ov.inflationPct : "";
-                  const prodVal = ov.productivityPct != null ? ov.productivityPct : "";
-                  const fxVal   = ov.fxChangePct != null ? ov.fxChangePct : "";
-                  const inflOverridden = ov.inflationPct != null;
-                  const prodOverridden = ov.productivityPct != null;
-                  const fxOverridden   = ov.fxChangePct != null;
-                  const inputBase = "w-20 px-2 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200";
+                  const inflVal = ov.inflationPct         != null ? ov.inflationPct         : "";
+                  const prodVal = ov.productivityPct      != null ? ov.productivityPct      : "";
+                  const aopVal  = ov.aopHeadcountDeltaPct != null ? ov.aopHeadcountDeltaPct : "";
+                  const rampVal = ov.hiringRamp           != null ? ov.hiringRamp           : "";
+                  const fxVal   = ov.fxChangePct          != null ? ov.fxChangePct          : "";
+                  const inflOverridden = ov.inflationPct         != null;
+                  const prodOverridden = ov.productivityPct      != null;
+                  const aopOverridden  = ov.aopHeadcountDeltaPct != null;
+                  const rampOverridden = ov.hiringRamp           != null;
+                  const fxOverridden   = ov.fxChangePct          != null;
+                  const anyOverridden  = inflOverridden || prodOverridden || aopOverridden || rampOverridden || fxOverridden;
+                  const inputBase = "w-16 px-1.5 py-1 text-sm font-mono text-right border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200";
                   const inputOverride = "border-purple-300 bg-purple-50 text-purple-900 font-semibold";
                   const inputDefault  = "border-gray-200 bg-white text-gray-900";
                   return (
-                    <tr key={cb.countryCode} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={cb.countryCode} className={`border-b border-gray-100 ${anyOverridden ? "bg-purple-50/30" : "hover:bg-gray-50"}`}>
                       <td className="py-2 px-2 font-medium text-gray-900">
                         {COUNTRY_NAME[cb.countryCode] || cb.label}
                         <span className="ml-2 text-xs text-gray-400 font-mono">{cb.countryCode}</span>
@@ -192,12 +228,45 @@ export default function CountryDriverOverrides({
                       <td className="py-2 px-2">
                         <div className="flex items-center justify-center gap-1">
                           <input
+                            type="number" step="1" value={aopVal} placeholder={aopPlaceholder}
+                            onChange={(e) => updateField(cb.countryCode, "aopHeadcountDeltaPct", e.target.value)}
+                            className={`${inputBase} ${aopOverridden ? inputOverride : inputDefault}`}
+                          />
+                          <span className="text-xs text-gray-400">%</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number" step="0.05" min="0" max="1" value={rampVal} placeholder={rampPlaceholder}
+                            onChange={(e) => updateField(cb.countryCode, "hiringRamp", e.target.value)}
+                            className={`${inputBase} ${rampOverridden ? inputOverride : inputDefault}`}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <input
                             type="number" step="0.5" value={fxVal} placeholder={fxPlaceholder}
                             onChange={(e) => updateField(cb.countryCode, "fxChangePct", e.target.value)}
                             className={`${inputBase} ${fxOverridden ? inputOverride : inputDefault}`}
                           />
                           <span className="text-xs text-gray-400">%</span>
                         </div>
+                      </td>
+                      <td className="text-right py-2 px-2">
+                        {anyOverridden ? (
+                          <button
+                            onClick={() => requestClearCountry(cb.countryCode)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded transition"
+                            title="Clear this country's overrides — global defaults will apply"
+                          >
+                            <X size={11} />
+                            Clear
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">default</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -206,9 +275,56 @@ export default function CountryDriverOverrides({
             </table>
           </div>
 
-          <p className="text-xs text-gray-400 italic">
-            Overrides apply to the country contribution view. Other panels (KPIs, waterfall, multi-year, comparison) use the scenario's global drivers.
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold">How this works:</span> per-country values flow into every panel (bridge, KPIs, country breakdown, scenario comparison). The matching global slider locks while a country has its own value, so country-level work can't be overwritten.
           </p>
+        </div>
+      )}
+
+      {/* Confirmation modal — clearing a country override */}
+      {pendingClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPendingClear(null)}>
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 rounded-full bg-amber-100">
+                <AlertCircle size={18} className="text-amber-700" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-gray-900">Clear {pendingClear.label} override{pendingClear.fields.length === 1 ? "" : "s"}?</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  {pendingClear.label} will return to the global default for {pendingClear.fields.length === 1 ? "this driver" : "these drivers"}:
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5 mb-5 ml-12">
+              {pendingClear.fields.map((f) => (
+                <div key={f.key} className="flex items-baseline gap-2 text-sm">
+                  <span className="font-medium text-gray-900 w-28">{f.label}</span>
+                  <span className="font-mono font-semibold text-purple-700">{f.value}%</span>
+                  <span className="text-gray-400">→</span>
+                  <span className="font-mono font-semibold text-gray-700">{f.fallback}%</span>
+                  <span className="text-xs text-gray-500 italic">(global)</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setPendingClear(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmClearCountry}
+                className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+              >
+                Clear override{pendingClear.fields.length === 1 ? "" : "s"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

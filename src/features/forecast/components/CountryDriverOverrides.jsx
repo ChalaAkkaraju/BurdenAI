@@ -121,7 +121,8 @@ export default function CountryDriverOverrides({
               </h3>
               {overrideCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200">
-                  {overrideCount} override{overrideCount === 1 ? "" : "s"} · sliders locked
+                  {overrideCount} override{overrideCount === 1 ? "" : "s"}
+                  {(inflationOverrides + productivityOverrides + aopOverrides + rampOverrides) > 0 && " · sliders locked"}
                 </span>
               )}
             </div>

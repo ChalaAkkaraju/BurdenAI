@@ -50,7 +50,7 @@ const modules = [
     key: 'runs',
     name: 'Audit',
     icon: Calculator,
-    question: "Can we reproduce last quarter's number?",
+    question: "Can we reproduce — and defend — last quarter's number?",
     points: [
       'Every period run is kept and repeatable',
       'Run history and audit log',
@@ -68,11 +68,11 @@ const modules = [
     key: 'forecast',
     name: 'Forecast',
     icon: TrendingUp,
-    question: 'Where will the rate be next year — and why?',
+    question: "Where will next year's rate land — and why?",
     points: [
-      'Inflation, productivity, hiring and FX drivers',
-      'Three scenarios side by side, 1 to 5 years out',
-      'Waterfall and sensitivity tornado explain the move',
+      "Built on this year's actuals plus a few clear drivers",
+      'Compare what-ifs side by side, 1 to 5 years out',
+      'Spot a budget gap before AOP submission, not after',
     ],
     tags: ['Scenarios', 'Waterfall', 'Sensitivity'],
     bar: 'bg-violet-300',
@@ -85,9 +85,9 @@ const modules = [
 ];
 
 const pills = [
-  { label: 'Country-aware rules', cls: 'bg-blue-50 border-blue-200 text-blue-800', dot: 'bg-blue-600' },
-  { label: 'Audit-ready runs', cls: 'bg-indigo-50 border-indigo-200 text-indigo-800', dot: 'bg-indigo-600' },
-  { label: 'Multi-year forecast', cls: 'bg-teal-50 border-teal-200 text-teal-800', dot: 'bg-teal-600' },
+  { label: 'Replaces the spreadsheet', cls: 'bg-blue-50 border-blue-200 text-blue-800', dot: 'bg-blue-600' },
+  { label: 'Audit-ready by design', cls: 'bg-indigo-50 border-indigo-200 text-indigo-800', dot: 'bg-indigo-600' },
+  { label: 'No black box', cls: 'bg-teal-50 border-teal-200 text-teal-800', dot: 'bg-teal-600' },
 ];
 
 function BrandMark({ className = '' }) {
@@ -129,22 +129,33 @@ export default function Landing({ onSignIn, blurred = false }) {
           </div>
 
           <p className="mt-8 text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
-            Burden AI · One cost model for every country
+            Burden AI · One system of record for burden cost
           </p>
 
-          <h1 className="mt-5 text-4xl sm:text-6xl font-bold tracking-tight leading-tight">
-            Know the{' '}
-            <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-500 bg-clip-text text-transparent">
-              true cost
-            </span>{' '}
-            of every hour
+          <h1 className="mt-5 text-[2rem] sm:text-6xl font-bold tracking-tight leading-[1.1]">
+            <span className="block">
+              Today's{' '}
+              <span className="whitespace-nowrap bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                true cost.
+              </span>
+            </span>
+            <span className="block">
+              Next year's{' '}
+              <span className="whitespace-nowrap bg-gradient-to-r from-violet-600 to-teal-500 bg-clip-text text-transparent">
+                best guess.
+              </span>
+            </span>
           </h1>
 
-          <p className="mt-6 max-w-3xl mx-auto text-lg sm:text-xl text-gray-500 leading-relaxed">
-            Payroll sits in one system. Benefit rules sit in another. Overhead sits in a spreadsheet —{' '}
-            <span className="font-semibold text-gray-900">and nobody agrees on the rate.</span>{' '}
-            Burden AI turns them into one burden rate by country, cost center and employee, and
-            forecasts where it is heading.
+          <p className="mt-5 text-xl sm:text-2xl font-semibold text-gray-700">
+            Know the true cost of every hour.
+          </p>
+
+          <p className="mt-4 max-w-3xl mx-auto text-lg sm:text-xl text-gray-500 leading-relaxed">
+            Payroll and benefits sit in one system. Overhead sits in another —{' '}
+            <span className="font-semibold text-gray-900">and the burden rate lives in a spreadsheet.</span>{' '}
+            Burden AI replaces it with one audit-ready rate by country, cost center and employee, then
+            forecasts next year from this year's actuals — every figure traced to a driver.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">

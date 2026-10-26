@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Lock, User, AlertCircle, Shield } from 'lucide-react';
+import { Lock, User, AlertCircle, Shield, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export default function Login() {
+export default function Login({ onBack }) {
   const { login, users } = useApp();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +19,16 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
       <div className="w-full max-w-md">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </button>
+        )}
         <div className="text-center mb-8">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 items-center justify-center shadow-lg mb-4">
             <Shield className="w-7 h-7 text-white" />

@@ -1,0 +1,213 @@
+import React from 'react';
+import {
+  Calculator,
+  Check,
+  LayoutDashboard,
+  Scale,
+  TrendingUp,
+} from 'lucide-react';
+
+// Public landing page shown before sign-in (same layout as the AI PMO landing).
+// Every card describes a module that exists in the app today.
+const modules = [
+  {
+    key: 'overview',
+    name: 'Overview',
+    icon: LayoutDashboard,
+    question: 'What does an hour of labour really cost us?',
+    points: [
+      'Total burden cost and average rate for every period',
+      'Drill down company → cost center → employee',
+      'Burden rate by country and by vertical',
+    ],
+    tags: ['Burden rate', 'Multiplier', 'Drill-down'],
+    bar: 'bg-slate-400',
+    glow: 'from-slate-50',
+    tile: 'bg-slate-900',
+    title: 'text-slate-900',
+    check: 'text-slate-700',
+    tag: 'bg-slate-100 text-slate-700',
+  },
+  {
+    key: 'rules',
+    name: 'Rules',
+    icon: Scale,
+    question: 'Are benefits and overhead applied the same way everywhere?',
+    points: [
+      'Country benefit and statutory rules, with FX',
+      'Overhead allocated by headcount, payroll or revenue',
+      'Set once, applied to every period',
+    ],
+    tags: ['Benefits', 'Allocation', 'FX'],
+    bar: 'bg-blue-300',
+    glow: 'from-blue-50',
+    tile: 'bg-blue-600',
+    title: 'text-blue-700',
+    check: 'text-blue-600',
+    tag: 'bg-blue-50 text-blue-700',
+  },
+  {
+    key: 'runs',
+    name: 'Audit',
+    icon: Calculator,
+    question: "Can we reproduce last quarter's number?",
+    points: [
+      'Every period run is kept and repeatable',
+      'Run history and audit log',
+      'Role-based access, scoped by region',
+    ],
+    tags: ['Calculation runs', 'Audit log', 'Roles'],
+    bar: 'bg-teal-300',
+    glow: 'from-teal-50',
+    tile: 'bg-teal-600',
+    title: 'text-teal-700',
+    check: 'text-teal-600',
+    tag: 'bg-teal-50 text-teal-700',
+  },
+  {
+    key: 'forecast',
+    name: 'Forecast',
+    icon: TrendingUp,
+    question: 'Where will the rate be next year — and why?',
+    points: [
+      'Inflation, productivity, hiring and FX drivers',
+      'Three scenarios side by side, 1 to 5 years out',
+      'Waterfall and sensitivity tornado explain the move',
+    ],
+    tags: ['Scenarios', 'Waterfall', 'Sensitivity'],
+    bar: 'bg-violet-300',
+    glow: 'from-violet-50',
+    tile: 'bg-violet-600',
+    title: 'text-violet-700',
+    check: 'text-violet-600',
+    tag: 'bg-violet-50 text-violet-700',
+  },
+];
+
+const pills = [
+  { label: 'Country-aware rules', cls: 'bg-blue-50 border-blue-200 text-blue-800', dot: 'bg-blue-600' },
+  { label: 'Audit-ready runs', cls: 'bg-indigo-50 border-indigo-200 text-indigo-800', dot: 'bg-indigo-600' },
+  { label: 'Multi-year forecast', cls: 'bg-teal-50 border-teal-200 text-teal-800', dot: 'bg-teal-600' },
+];
+
+function BrandMark({ className = '' }) {
+  // Coin + rising bars: "cost" and "rate".
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <circle cx="12" cy="13" r="7" stroke="#FBBF24" strokeWidth="2.2" />
+      <path d="M12 9.5v7M10 11.2c0-.9.9-1.5 2-1.5s2 .6 2 1.4M14 14.8c0 .9-.9 1.5-2 1.5s-2-.6-2-1.4" stroke="#FBBF24" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M19 26v-4M23.5 26v-7M28 26V15" stroke="#FBBF24" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export default function Landing({ onSignIn }) {
+  return (
+    <div className="min-h-screen bg-white text-gray-900 relative overflow-hidden">
+      {/* soft background glow */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-gradient-to-b from-indigo-50 via-blue-50/40 to-transparent blur-3xl" />
+
+      <header className="relative flex justify-end px-4 sm:px-8 pt-6">
+        <button
+          type="button"
+          onClick={onSignIn}
+          className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 font-semibold shadow-sm hover:bg-gray-50 transition-colors"
+        >
+          Sign in
+        </button>
+      </header>
+
+      <main className="relative max-w-7xl mx-auto px-4 sm:px-8 pb-12">
+        <section className="text-center pt-2 sm:pt-4">
+          <div className="inline-flex w-20 h-20 rounded-3xl bg-gray-900 items-center justify-center shadow-xl">
+            <BrandMark className="w-10 h-10" />
+          </div>
+
+          <p className="mt-8 text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
+            Burden AI · One cost model for every country
+          </p>
+
+          <h1 className="mt-5 text-4xl sm:text-6xl font-bold tracking-tight leading-tight">
+            Know the{' '}
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-teal-500 bg-clip-text text-transparent">
+              true cost
+            </span>{' '}
+            of every hour
+          </h1>
+
+          <p className="mt-6 max-w-3xl mx-auto text-lg sm:text-xl text-gray-500 leading-relaxed">
+            Payroll sits in one system. Benefit rules sit in another. Overhead sits in a spreadsheet —{' '}
+            <span className="font-semibold text-gray-900">and nobody agrees on the rate.</span>{' '}
+            Burden AI turns them into one burden rate by country, cost center and employee, and
+            forecasts where it is heading.
+          </p>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            {pills.map((p) => (
+              <span
+                key={p.label}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm sm:text-base font-medium ${p.cls}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+                {p.label}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-14">
+          <p className="text-center text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
+            What's inside
+          </p>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {modules.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={onSignIn}
+                  className={`group text-left flex flex-col rounded-2xl border border-gray-200 bg-gradient-to-b ${m.glow} to-white to-30% shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden`}
+                >
+                  <div className={`h-1.5 w-full ${m.bar}`} />
+                  <div className="flex flex-col flex-1 p-6">
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex w-12 h-12 rounded-xl ${m.tile} items-center justify-center`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </span>
+                      <span className={`text-xl font-semibold ${m.title}`}>{m.name}</span>
+                    </div>
+
+                    <h3 className="mt-5 text-lg font-semibold leading-snug text-gray-900">{m.question}</h3>
+
+                    <ul className="mt-4 space-y-2.5 flex-1">
+                      {m.points.map((pt) => (
+                        <li key={pt} className="flex gap-2.5 text-[15px] text-gray-500 leading-snug">
+                          <Check className={`w-4 h-4 mt-0.5 flex-shrink-0 ${m.check}`} />
+                          <span>{pt}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      {m.tags.map((t) => (
+                        <span key={t} className={`px-3 py-1 rounded-full text-sm ${m.tag}`}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <p className="mt-12 text-center text-sm text-gray-500">
+          Workforce shown inside is illustrative sample data · access is by invitation.
+        </p>
+      </main>
+    </div>
+  );
+}

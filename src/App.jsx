@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import Layout from './components/Layout';
 import Login from './components/Login';
+import Landing from './components/Landing';
 import Dashboard from './components/views/Dashboard';
 import DataImport from './components/views/DataImport';
 import RawData from './components/views/RawData';
@@ -29,7 +30,12 @@ const pages = {
 function AuthedApp() {
   const { isAuthenticated, hasAccess } = useApp();
   const [activePage, setActivePage] = useState('dashboard');
-  if (!isAuthenticated) return <Login />;
+  const [showLogin, setShowLogin] = useState(false);
+  if (!isAuthenticated) {
+    return showLogin
+      ? <Login onBack={() => setShowLogin(false)} />
+      : <Landing onSignIn={() => setShowLogin(true)} />;
+  }
   // Guard: if user lacks access to the active page, fall back to first allowed page.
   const effectivePage = hasAccess(activePage)
     ? activePage

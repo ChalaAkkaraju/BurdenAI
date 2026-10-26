@@ -101,9 +101,14 @@ function BrandMark({ className = '' }) {
   );
 }
 
-export default function Landing({ onSignIn }) {
+export default function Landing({ onSignIn, blurred = false }) {
   return (
-    <div className="min-h-screen bg-white text-gray-900 relative overflow-hidden">
+    <div
+      aria-hidden={blurred}
+      className={`min-h-screen bg-white text-gray-900 relative overflow-hidden transition-[filter] duration-200 ${
+        blurred ? 'blur-sm pointer-events-none select-none' : ''
+      }`}
+    >
       {/* soft background glow */}
       <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-gradient-to-b from-indigo-50 via-blue-50/40 to-transparent blur-3xl" />
 

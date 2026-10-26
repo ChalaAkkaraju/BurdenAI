@@ -32,9 +32,12 @@ function AuthedApp() {
   const [activePage, setActivePage] = useState('dashboard');
   const [showLogin, setShowLogin] = useState(false);
   if (!isAuthenticated) {
-    return showLogin
-      ? <Login onBack={() => setShowLogin(false)} />
-      : <Landing onSignIn={() => setShowLogin(true)} />;
+    return (
+      <>
+        <Landing onSignIn={() => setShowLogin(true)} blurred={showLogin} />
+        {showLogin && <Login onClose={() => setShowLogin(false)} />}
+      </>
+    );
   }
   // Guard: if user lacks access to the active page, fall back to first allowed page.
   const effectivePage = hasAccess(activePage)

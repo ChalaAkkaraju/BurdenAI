@@ -1,30 +1,37 @@
 import React, { useState } from 'react';
-import { ChevronDown, Bell, Shield, LogOut } from 'lucide-react';
-import Sidebar from './Sidebar';
+import { ChevronDown, ChevronRight, Bell, Shield, LogOut, CalendarDays } from 'lucide-react';
+import Sidebar, { NAV } from './Sidebar';
 import { useApp } from '../context/AppContext';
 
 const Layout = ({ children, activePage, setActivePage }) => {
   const { selectedPeriod, setSelectedPeriod, periods, currentUser, logout } = useApp();
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const current = NAV.flatMap((sec) => sec.items.map((i) => ({ ...i, section: sec.section }))).find((i) => i.id === activePage);
 
   const accessLabel = currentUser?.allowedCountries?.includes('*')
     ? 'All Countries'
     : (currentUser?.allowedCountries || []).join(', ') || 'No Access';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar */}
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shadow-sm print:hidden">
+        <header className="bg-white/80 backdrop-blur border-b border-gray-200/80 h-16 flex items-center justify-between gap-4 px-8 print:hidden">
           {/* Left Side - Title and Subtitle */}
           <div className="flex flex-col">
-            <h1 className="text-sm text-gray-500 font-medium tracking-wide">
-              Burden Cost & Rate Platform
-            </h1>
+            {current ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 font-medium">{current.section}</span>
+                <ChevronRight size={14} className="text-gray-300" />
+                <span className="font-semibold text-gray-900">{current.label}</span>
+              </div>
+            ) : (
+              <span className="text-sm text-gray-500 font-medium">Burden AI</span>
+            )}
           </div>
 
           {/* Right Side - Period Selector, Notifications, User */}
@@ -33,8 +40,10 @@ const Layout = ({ children, activePage, setActivePage }) => {
             <div className="relative">
               <button
                 onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm transition-colors"
+                aria-label={`Period ${selectedPeriod}`}
               >
+                <CalendarDays size={15} className="text-blue-600" />
                 {selectedPeriod}
                 <ChevronDown size={16} className="text-gray-500" />
               </button>
@@ -64,7 +73,7 @@ const Layout = ({ children, activePage, setActivePage }) => {
 
             {/* Access Scope Badge */}
             <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-sm font-medium text-amber-800"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-sm font-medium text-amber-800"
               title="Country access scope"
             >
               <Shield size={14} />
@@ -74,7 +83,7 @@ const Layout = ({ children, activePage, setActivePage }) => {
             {/* Logout */}
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 shadow-sm transition-colors"
               title="Sign out"
             >
               <LogOut size={14} />
@@ -97,7 +106,7 @@ const Layout = ({ children, activePage, setActivePage }) => {
                   {currentUser?.role || 'Role'}
                 </span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 ring-2 ring-white shadow flex items-center justify-center text-white font-semibold text-sm">
                 {currentUser?.name
                   ? currentUser.name
                       .split(' ')

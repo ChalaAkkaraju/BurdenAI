@@ -4,15 +4,17 @@ import {
   Check,
   LayoutDashboard,
   Scale,
+  Target,
   TrendingUp,
 } from 'lucide-react';
+import BrandMark from './BrandMark';
 
 // Public landing page shown before sign-in (same layout as the AI PMO landing).
 // Every card describes a module that exists in the app today.
 const modules = [
   {
     key: 'overview',
-    name: 'Overview',
+    name: 'Burden Cost',
     icon: LayoutDashboard,
     question: 'What does an hour of labour really cost us?',
     points: [
@@ -82,6 +84,24 @@ const modules = [
     check: 'text-violet-600',
     tag: 'bg-violet-50 text-violet-700',
   },
+  {
+    key: 'planvsactual',
+    name: 'Plan vs Actual',
+    icon: Target,
+    question: 'Did we use the hours we planned — and recover the overhead?',
+    points: [
+      'Utilization against plan and target, by cost center',
+      'Cost variance split into volume and rate',
+      'Over- and under-absorption flagged for review',
+    ],
+    tags: ['Utilization', 'Absorption', 'Variance'],
+    bar: 'bg-amber-300',
+    glow: 'from-amber-50',
+    tile: 'bg-amber-600',
+    title: 'text-amber-700',
+    check: 'text-amber-600',
+    tag: 'bg-amber-50 text-amber-700',
+  },
 ];
 
 const pills = [
@@ -90,16 +110,6 @@ const pills = [
   { label: 'No black box', cls: 'bg-teal-50 border-teal-200 text-teal-800', dot: 'bg-teal-600' },
 ];
 
-function BrandMark({ className = '' }) {
-  // Coin + rising bars: "cost" and "rate".
-  return (
-    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      <circle cx="12" cy="13" r="7" stroke="#FBBF24" strokeWidth="2.2" />
-      <path d="M12 9.5v7M10 11.2c0-.9.9-1.5 2-1.5s2 .6 2 1.4M14 14.8c0 .9-.9 1.5-2 1.5s-2-.6-2-1.4" stroke="#FBBF24" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M19 26v-4M23.5 26v-7M28 26V15" stroke="#FBBF24" strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export default function Landing({ onSignIn, blurred = false }) {
   return (
@@ -112,23 +122,26 @@ export default function Landing({ onSignIn, blurred = false }) {
       {/* soft background glow */}
       <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-gradient-to-b from-indigo-50 via-blue-50/40 to-transparent blur-3xl" />
 
-      <header className="relative flex justify-end px-4 sm:px-8 pt-6">
+      <header className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:px-8 pt-6">
+        <span aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <div className="inline-flex w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gray-900 items-center justify-center shadow-lg">
+            <BrandMark className="w-7 h-7" />
+          </div>
+          <span className="text-lg sm:text-xl font-bold tracking-tight text-gray-900 whitespace-nowrap">Burden AI</span>
+        </div>
         <button
           type="button"
           onClick={onSignIn}
-          className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 font-semibold shadow-sm hover:bg-gray-50 transition-colors"
+          className="justify-self-end whitespace-nowrap px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 font-semibold shadow-sm hover:bg-gray-50 transition-colors"
         >
           Sign in
         </button>
       </header>
 
       <main className="relative max-w-7xl mx-auto px-4 sm:px-8 pb-12">
-        <section className="text-center pt-2 sm:pt-4">
-          <div className="inline-flex w-20 h-20 rounded-3xl bg-gray-900 items-center justify-center shadow-xl">
-            <BrandMark className="w-10 h-10" />
-          </div>
-
-          <p className="mt-8 text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
+        <section className="text-center pt-12 sm:pt-16">
+          <p className="text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
             Burden AI · One system of record for burden cost
           </p>
 
@@ -171,12 +184,8 @@ export default function Landing({ onSignIn, blurred = false }) {
           </div>
         </section>
 
-        <section className="mt-14">
-          <p className="text-center text-xs sm:text-sm font-semibold tracking-[0.25em] text-gray-500 uppercase">
-            What's inside
-          </p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-16" aria-label="Modules">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {modules.map((m) => {
               const Icon = m.icon;
               return (

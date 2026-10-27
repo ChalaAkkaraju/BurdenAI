@@ -76,6 +76,22 @@ async function callOllama(cfg, { system, user, schema }) {
   });
 }
 
+// Claude's structured output takes a stricter JSON Schema: every object needs
+// additionalProperties: false, and minItems/maxItems are limited. The loose
+// limits stay in the prompt text; the server checks the result anyway.
+export function strictSchema(node) {
+  if (Array.isArray(node)) return node.map(strictSchema);
+  if (!node || typeof node !== "object") return node;
+  const out = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (k === "maxItems") continue;
+    if (k === "minItems") { out.minItems = Math.min(1, Number(v) || 0); continue; }
+    out[k] = strictSchema(v);
+  }
+  if (out.type === "object") out.additionalProperties = false;
+  return out;
+}
+
 async function callAnthropic(cfg, { system, user, schema }) {
   if (!cfg.anthropicKey) throw new Error("ANTHROPIC_API_KEY is not set on the server");
   return withTimeout(cfg.timeoutMs, async (signal) => {
@@ -89,23 +105,23 @@ async function callAnthropic(cfg, { system, user, schema }) {
       },
       body: JSON.stringify({
         model: cfg.anthropicModel,
-        max_tokens: 1200,
-        temperature: 0.2,
+        max_tokens: 4000,
         system,
-        // Forcing a single tool call makes Claude return JSON in the schema.
-        tools: [{ name: "respond", description: "Return the answer", input_schema: schema }],
-        tool_choice: { type: "tool", name: "respond" },
+        // Structured output: Claude returns JSON that matches the schema.
+        output_config: { format: { type: "json_schema", schema: strictSchema(schema) } },
         messages: [{ role: "user", content: user }],
       }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`Anthropic API error ${res.status}: ${body.slice(0, 300)}`);
+      let detail = body.slice(0, 300);
+      try { detail = JSON.parse(body)?.error?.message || detail; } catch { /* keep text */ }
+      throw new Error(`Claude API error ${res.status}: ${detail}`);
     }
     const data = await res.json();
-    const block = (data.content || []).find((b) => b.type === "tool_use");
-    if (!block) throw new Error("Claude did not return a structured answer");
-    return block.input;
+    const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+    if (!text) throw new Error(`Claude returned no answer (stop reason: ${data.stop_reason || "unknown"})`);
+    return parseJson(text);
   });
 }
 

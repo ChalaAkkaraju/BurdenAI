@@ -12,7 +12,7 @@ import { useApp } from "../../context/AppContext";
 import { useSnapshots } from "../forecast/hooks/useSnapshots.js";
 import { DEFAULT_SCENARIOS } from "../forecast/hooks/useScenarios.js";
 import { money, rate } from "../planVsActual/format.js";
-import { backtest, scorecard, snapshotAccuracy, periodLabel } from "./engine.js";
+import { backtest, learnedBacktest, scorecard, snapshotAccuracy, periodLabel, LEARNED_ID, LEARNED_NAME } from "./engine.js";
 import { exportSheets, FMT, stamp } from "./exportXlsx.js";
 
 const SCENARIO_COLORS = ["#7c3aed", "#ea580c", "#0d9488", "#2563eb", "#db2777"];
@@ -34,7 +34,10 @@ export default function ForecastAccuracyTab({ onExportReady, onNavigate }) {
   const scenarios = useMemo(loadScenarios, []);
   const asOf = periods[periods.length - 1];
 
-  const rows = useMemo(() => backtest({ periodData, scenarios, asOfPeriod: asOf, years: 4 }), [periodData, scenarios, asOf]);
+  const rows = useMemo(() => [
+    ...backtest({ periodData, scenarios, asOfPeriod: asOf, years: 4 }),
+    ...learnedBacktest({ periodData, asOfPeriod: asOf, years: 4 }),
+  ], [periodData, scenarios, asOf]);
   const scores = useMemo(() => scorecard(rows), [rows]);
   const snapRows = useMemo(() => snapshotAccuracy({ snapshots, periodData }), [snapshots, periodData]);
 
@@ -77,12 +80,13 @@ export default function ForecastAccuracyTab({ onExportReady, onNavigate }) {
         <p>
           <strong className="text-gray-800">Backtest:</strong> each scenario's current drivers are run from the actuals 12 months
           before each month below — the same calculation as the Forecast page — and compared with what actually happened.
-          Saved snapshots are scored the same way once their forecast month has actuals.
+          The learned trend model is scored the same way, fitted only on the months up to each baseline.
+          Saved snapshots are scored once their forecast month has actuals.
         </p>
       </div>
 
       {/* Scorecard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {scores.map((s, i) => (
           <div key={s.scenarioId} className={`bg-white p-5 rounded-lg border ${i === 0 ? "border-blue-300 ring-1 ring-blue-200" : "border-gray-200"}`}>
             <div className="flex items-center justify-between">
@@ -113,13 +117,15 @@ export default function ForecastAccuracyTab({ onExportReady, onNavigate }) {
               {scenarios.map((s, i) => (
                 <Bar key={s.id} dataKey={s.name} fill={SCENARIO_COLORS[i % SCENARIO_COLORS.length]} radius={[3, 3, 0, 0]} isAnimationActive={false} />
               ))}
+              <Bar key={LEARNED_ID} dataKey={LEARNED_NAME} fill="#a78bfa" radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
         {best && (
           <p className="text-sm text-gray-700 mt-2">
             <strong>{best.scenarioName}</strong> has been closest on average, missing by {(best.costMape * 100).toFixed(1)}%.
-            The sample workforce is flat year to year, so each scenario misses in the direction of the headcount change it assumes (growth over-forecasts, cuts under-forecast).
+            The sample workforce is flat year to year, so each driver scenario misses in the direction of the headcount change it assumes (growth over-forecasts, cuts under-forecast);
+            the learned trend model assumes nothing and follows the history.
           </p>
         )}
       </div>

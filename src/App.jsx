@@ -15,6 +15,7 @@ import Reports from './components/views/Reports';
 import AdminConsole from './components/views/AdminConsole';
 import ForecastTab from './features/forecast/components/ForecastTab';
 import PlanVsActualTab from './features/planVsActual/components/PlanVsActualTab';
+import { AiProvider } from './features/ai/AiContext';
 
 const pages = {
   dashboard: HomeDashboard,
@@ -52,9 +53,11 @@ function AuthedApp() {
     if (hasAccess(id)) setActivePage(id);
   };
   return (
-    <Layout activePage={effectivePage} setActivePage={guardedSetActivePage}>
-      <PageComponent onNavigate={guardedSetActivePage} />
-    </Layout>
+    <AiProvider activePage={effectivePage}>
+      <Layout activePage={effectivePage} setActivePage={guardedSetActivePage}>
+        <PageComponent onNavigate={guardedSetActivePage} />
+      </Layout>
+    </AiProvider>
   );
 }
 

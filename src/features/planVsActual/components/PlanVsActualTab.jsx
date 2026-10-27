@@ -26,6 +26,7 @@ import UtilizationTrend from "./UtilizationTrend.jsx";
 import VarianceTable from "./VarianceTable.jsx";
 import PlanUploadDialog from "./PlanUploadDialog.jsx";
 import TargetsDialog from "./TargetsDialog.jsx";
+import { useAi } from "../../ai/AiContext.jsx";
 
 const COUNTRY_NAME = Object.fromEntries(COUNTRY_LIST.map((c) => [c.code, c.name]));
 const SHORT_NAME = { US: "US", GB: "UK", DE: "Germany", IN: "India", JP: "Japan", BR: "Brazil", SG: "Singapore", AU: "Australia" };
@@ -104,6 +105,7 @@ const DEFAULT_SETTINGS = {
 export default function PlanVsActualTab() {
   const { costData, employeeMap, periods, currentUser, addAuditEntry } = useApp();
   const { snapshots } = useSnapshots();
+  const ai = useAi();
 
   const [settings, setSettings] = usePersistedState("burdenai_pva_settings", DEFAULT_SETTINGS);
   const [uploads, setUploads] = usePersistedState("burdenai_pva_uploads", {});
@@ -441,6 +443,13 @@ export default function PlanVsActualTab() {
             flagRules={flagRules}
             onFlagGapChange={(v) => set({ flagGapPts: v })}
             defaultOpen={countryRows.length === 1 ? countryRows[0].code : null}
+            onExplain={ai.visible ? (row) => ai.explain({
+              name: row.kind === "costCenter" ? `${row.name}` : row.kind === "country" ? row.name : filterLabel,
+              scope: row.kind === "costCenter" ? `${row.countryName} · ${row.id}` : row.kind === "country" ? "Country" : "Total",
+              periodLabel,
+              s: row.s,
+              cur: row.cur,
+            }) : null}
           />
 
           <p className="text-xs text-gray-500">

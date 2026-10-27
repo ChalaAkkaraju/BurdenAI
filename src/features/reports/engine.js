@@ -2,6 +2,7 @@
 // accuracy report tabs. Pure functions, no React.
 
 import { forecast } from "../forecast/engine/forecastEngine.js";
+import { learnedForecast } from "../ai/engine/holtWinters.js";
 import { plannableFiscalYears, availableMonths } from "../planVsActual/engine/fiscal.js";
 import { annualByCostCenter, derivePlan, applyUploads } from "../planVsActual/engine/plan.js";
 import { buildLines, summarize, groupBy } from "../planVsActual/engine/variance.js";
@@ -57,6 +58,36 @@ export function backtest({ periodData, scenarios, asOfPeriod, years = 4 }) {
         forecastHeadcount: f.forecastedHeadcount, actualHeadcount: a.employeeCount,
       });
     }
+  }
+  return rows;
+}
+
+// The learned trend model, scored the same way: fitted only on months up to
+// each baseline month, forecasting 12 months ahead.
+export const LEARNED_ID = "learned";
+export const LEARNED_NAME = "Learned (trend model)";
+
+export function learnedBacktest({ periodData, asOfPeriod, years = 4 }) {
+  const byPeriod = new Map(periodData.map((p) => [p.period, p]));
+  const rows = [];
+  for (let k = 0; k < years; k++) {
+    const actualPeriod = shiftPeriod(asOfPeriod, -12 * k);
+    const baselinePeriod = shiftPeriod(actualPeriod, -12);
+    const a = byPeriod.get(actualPeriod);
+    if (!a || !byPeriod.has(baselinePeriod)) continue;
+    const hist = periodData.filter((p) => p.period <= baselinePeriod);
+    const cost = learnedForecast(hist.map((p) => p.totalCostToCompany), 12);
+    if (!cost) continue;
+    const rateF = learnedForecast(hist.map((p) => (p.totalHours > 0 ? p.totalCostToCompany / p.totalHours : 0)), 12);
+    const actualRate = a.totalHours > 0 ? a.totalCostToCompany / a.totalHours : 0;
+    const fc = cost.path[11];
+    const fr = rateF ? rateF.path[11] : null;
+    rows.push({
+      baselinePeriod, actualPeriod, scenarioId: LEARNED_ID, scenarioName: LEARNED_NAME,
+      forecastCost: fc, actualCost: a.totalCostToCompany, costErrPct: pctErr(fc, a.totalCostToCompany),
+      forecastRate: fr, actualRate, rateErrPct: fr != null ? pctErr(fr, actualRate) : null,
+      forecastHeadcount: null, actualHeadcount: a.employeeCount,
+    });
   }
   return rows;
 }

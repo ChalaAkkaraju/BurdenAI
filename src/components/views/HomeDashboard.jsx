@@ -19,6 +19,11 @@ import { usePlanVsActualSummary } from '../../features/planVsActual/hooks/usePla
 import { monthLabel } from '../../features/planVsActual/engine/fiscal.js';
 import { money, pct, pts, rate, tone } from '../../features/planVsActual/format.js';
 import { countries as COUNTRY_LIST } from '../../data/orgHierarchy.js';
+import { useAi } from '../../features/ai/AiContext';
+import { SparkIcon } from '../../features/ai/components/Drawer';
+import { useAnomalies } from '../../features/ai/hooks/useAiData';
+import { summarize } from '../../features/planVsActual/engine/variance.js';
+import AnomaliesCard from '../../features/ai/components/AnomaliesCard';
 
 const COUNTRY_NAME = Object.fromEntries(COUNTRY_LIST.map((c) => [c.code, c.name]));
 
@@ -119,6 +124,28 @@ export default function HomeDashboard({ onNavigate }) {
     })) : []),
     [pva],
   );
+
+  const ai = useAi();
+  const latestPeriod = periods[periods.length - 1];
+  const anomalies = useAnomalies(latestPeriod, ai.settings?.anomalyCutoff);
+  const ytdLabel = pva ? `FY${pva.fy} year to date (${monthLabel(pva.months[0])} – ${monthLabel(pva.through)})` : '';
+  const explainCc = (c) => ai.explain({
+    name: c.departmentName,
+    scope: `${COUNTRY_NAME[c.countryCode] || c.countryCode} · ${c.id}`,
+    periodLabel: ytdLabel,
+    s: c.s,
+  });
+  const explainAnomaly = (a, sentence) => {
+    const lines = (pva?.lines || []).filter((l) => l.costCenterId === a.costCenterId && l.period === a.period);
+    if (!lines.length) return;
+    ai.explain({
+      name: a.departmentName,
+      scope: `${COUNTRY_NAME[a.countryCode] || a.countryCode} · ${a.costCenterId}`,
+      periodLabel: monthLabel(a.period),
+      s: summarize(lines),
+      extraFacts: [`Unusual this month: ${sentence}`],
+    });
+  };
 
   const can = (id) => hasAccess(id);
   const go = (id) => () => onNavigate && onNavigate(id);
@@ -269,9 +296,17 @@ export default function HomeDashboard({ onNavigate }) {
                       <span className="block font-medium text-gray-900">{c.departmentName}</span>
                       <span className="block text-xs text-gray-500">{COUNTRY_NAME[c.countryCode] || c.countryCode} · {c.id}</span>
                     </span>
-                    <span className="text-right shrink-0">
-                      <span className={`block font-semibold ${tone(c.s.absorption >= 0)}`}>{money(c.s.absorption, undefined, { signed: true })}</span>
-                      <span className={`block text-xs ${tone(c.s.gapToTargetPts >= 0)}`}>{pts(c.s.gapToTargetPts)} vs target</span>
+                    <span className="flex items-start gap-2 shrink-0">
+                      <span className="text-right">
+                        <span className={`block font-semibold ${tone(c.s.absorption >= 0)}`}>{money(c.s.absorption, undefined, { signed: true })}</span>
+                        <span className={`block text-xs ${tone(c.s.gapToTargetPts >= 0)}`}>{pts(c.s.gapToTargetPts)} vs target</span>
+                      </span>
+                      {ai.visible && (
+                        <button type="button" onClick={() => explainCc(c)} aria-label={`Explain ${c.departmentName} ${c.countryCode}`} title="Explain this variance"
+                          className="mt-0.5 p-1.5 rounded-lg text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-200">
+                          <SparkIcon size={12} className="text-amber-500" />
+                        </button>
+                      )}
                     </span>
                   </li>
                 ))}
@@ -287,6 +322,14 @@ export default function HomeDashboard({ onNavigate }) {
           </section>
         </div>
       )}
+
+      <AnomaliesCard
+        anomalies={anomalies}
+        period={latestPeriod}
+        cutoff={ai.settings?.anomalyCutoff}
+        countryName={(c) => COUNTRY_NAME[c] || c}
+        onExplain={ai.visible && showPva && pva?.lines?.some((l) => l.period === latestPeriod) ? explainAnomaly : null}
+      />
     </div>
   );
 }

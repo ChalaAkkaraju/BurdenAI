@@ -3,9 +3,23 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { money, pct, pts, num, tone } from "../format.js";
+import { SparkIcon } from "../../ai/components/Drawer.jsx";
+
+function ExplainButton({ onClick, label }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      aria-label={`Explain ${label}`}
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-slate-800 bg-amber-50 hover:bg-amber-100 border border-amber-200"
+    >
+      <SparkIcon size={11} className="text-amber-500" /> Explain
+    </button>
+  );
+}
 
 const GRID =
-  "grid grid-cols-[minmax(190px,2fr)_104px_minmax(86px,1fr)_repeat(4,minmax(58px,0.8fr))_repeat(3,minmax(80px,1fr))_64px] gap-2 items-center";
+  "grid grid-cols-[minmax(190px,2fr)_104px_minmax(86px,1fr)_repeat(4,minmax(58px,0.8fr))_repeat(3,minmax(80px,1fr))_64px_var(--explain-col)] gap-2 items-center";
 
 function Cells({ s, cur }) {
   return (
@@ -30,7 +44,8 @@ const SOURCE_STYLE = {
   "No plan": "bg-red-50 text-red-700",
 };
 
-export default function VarianceTable({ countries, total, totalCur, flagRules, onFlagGapChange, defaultOpen }) {
+export default function VarianceTable({ countries, total, totalCur, flagRules, onFlagGapChange, defaultOpen, onExplain }) {
+  const explainCol = onExplain ? "84px" : "0px";
   const [open, setOpen] = useState(() => new Set(defaultOpen ? [defaultOpen] : []));
   const toggle = (code) =>
     setOpen((prev) => {
@@ -69,7 +84,7 @@ export default function VarianceTable({ countries, total, totalCur, flagRules, o
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[980px] text-sm">
+        <div className={`${onExplain ? "min-w-[1070px]" : "min-w-[980px]"} text-sm`} style={{ "--explain-col": explainCol }}>
           <div className={`${GRID} px-3 py-2.5 bg-gray-50 rounded-lg text-[11px] font-semibold uppercase tracking-wider text-gray-500`}>
             <span>Country / cost center</span>
             <span>Plan source</span>
@@ -82,25 +97,25 @@ export default function VarianceTable({ countries, total, totalCur, flagRules, o
             <span className="text-right">Rate</span>
             <span className="text-right">Absorption</span>
             <span className="text-center">Flag</span>
+            <span />
           </div>
 
           {countries.map((c) => {
             const isOpen = open.has(c.code);
             return (
               <div key={c.code} className="border-b border-gray-100">
-                <button
-                  type="button"
+                <div
                   onClick={() => toggle(c.code)}
-                  aria-expanded={isOpen}
-                  className={`${GRID} w-full px-3 py-3 text-left hover:bg-gray-50`}
+                  className={`${GRID} w-full px-3 py-3 text-left hover:bg-gray-50 cursor-pointer`}
                 >
-                  <span className="flex items-start gap-2 text-gray-900">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); toggle(c.code); }} aria-expanded={isOpen}
+                    className="flex items-start gap-2 text-gray-900 text-left">
                     {isOpen ? <ChevronDown size={16} className="text-gray-500 mt-0.5 shrink-0" /> : <ChevronRight size={16} className="text-gray-500 mt-0.5 shrink-0" />}
                     <span>
                       <span className="block font-semibold">{c.name}</span>
                       <span className="block text-xs text-gray-500">{c.ccs.length} cost centers{c.cur.code !== "USD" ? ` · ${c.cur.code}` : ""}</span>
                     </span>
-                  </span>
+                  </button>
                   <span className="text-xs text-gray-600">{c.sourceSummary}</span>
                   <Cells s={c.s} cur={c.cur} />
                   <span className="text-center">
@@ -108,7 +123,8 @@ export default function VarianceTable({ countries, total, totalCur, flagRules, o
                       <span title={`${c.flagCount} cost centers to review`} className="text-[11px] font-semibold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-full">{c.flagCount}</span>
                     )}
                   </span>
-                </button>
+                  <span className="text-right">{onExplain && <ExplainButton label={c.name} onClick={() => onExplain({ kind: "country", code: c.code, name: c.name, s: c.s, cur: c.cur })} />}</span>
+                </div>
                 {isOpen &&
                   c.ccs.map((r) => (
                     <div key={r.id} className={`${GRID} px-3 py-2.5 bg-gray-50/60 border-t border-gray-100`}>
@@ -123,6 +139,7 @@ export default function VarianceTable({ countries, total, totalCur, flagRules, o
                       <span className="text-center">
                         {r.flag && <span className="text-[11px] font-semibold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-full">Review</span>}
                       </span>
+                      <span className="text-right">{onExplain && <ExplainButton label={r.departmentName} onClick={() => onExplain({ kind: "costCenter", id: r.id, name: r.departmentName, countryName: c.name, s: r.s, cur: c.cur })} />}</span>
                     </div>
                   ))}
               </div>
@@ -135,6 +152,7 @@ export default function VarianceTable({ countries, total, totalCur, flagRules, o
               <span />
               <Cells s={total} cur={totalCur} />
               <span />
+              <span className="text-right">{onExplain && <ExplainButton label="the total" onClick={() => onExplain({ kind: "total", name: "Total", s: total, cur: totalCur })} />}</span>
             </div>
           )}
         </div>

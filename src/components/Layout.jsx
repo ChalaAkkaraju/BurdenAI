@@ -35,7 +35,7 @@ const Layout = ({ children, activePage, setActivePage }) => {
           </div>
 
           {/* Right Side - Period Selector, Notifications, User */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 xl:gap-6">
             {/* Period Selector */}
             <div className="relative">
               <button

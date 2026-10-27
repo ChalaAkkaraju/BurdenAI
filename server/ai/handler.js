@@ -151,9 +151,10 @@ export function createAiHandler(env = process.env) {
 
       return send(res, 404, { error: "Not found" });
     } catch (e) {
-      log(path, t0, false, e.name === "AbortError" ? "timeout" : "");
       const msg = e.name === "AbortError" ? "The model took too long to answer. Try again." : e.message || "AI request failed";
-      return send(res, e.status || 502, { error: msg });
+      log(path, t0, false, `error="${String(msg).slice(0, 300)}"`);
+      // 500, not 502: hosting proxies replace 502 responses with their own page and the message is lost.
+      return send(res, e.status || 500, { error: msg });
     }
   };
 }

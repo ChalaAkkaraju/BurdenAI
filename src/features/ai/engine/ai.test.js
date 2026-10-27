@@ -176,3 +176,46 @@ describe("orchestrator and agents", () => {
     expect(sanitizePlan({ tool: "variance" }, f).tool).toBe("forecast");
   });
 });
+
+describe("Claude request (mocked API)", () => {
+  it("sends structured-output JSON schema and reads the text answer", async () => {
+    const { strictSchema, callModel, readConfig } = await import("../../../../server/ai/providers.js");
+    const { EXPLAIN_SCHEMA } = await import("../../../../server/ai/prompts.js");
+    const strict = strictSchema(EXPLAIN_SCHEMA);
+    expect(strict.additionalProperties).toBe(false);
+    expect(strict.properties.points.items.additionalProperties).toBe(false);
+    expect(strict.properties.points.maxItems).toBeUndefined();
+    expect(strict.properties.points.minItems).toBe(1);
+
+    const calls = [];
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url, body: JSON.parse(init.body), headers: init.headers });
+      return { ok: true, json: async () => ({ content: [{ type: "thinking", thinking: "…" }, { type: "text", text: '{"answer":"ok"}' }] }) };
+    };
+    try {
+      const cfg = readConfig({ ANTHROPIC_API_KEY: "test-key" });
+      expect(cfg.provider).toBe("anthropic");
+      const out = await callModel(cfg, { system: "s", user: "u", schema: { type: "object", properties: { answer: { type: "string" } }, required: ["answer"] } });
+      expect(out).toEqual({ answer: "ok" });
+      const b = calls[0].body;
+      expect(b.model).toBe("claude-sonnet-5-5");
+      expect(b.output_config.format.type).toBe("json_schema");
+      expect(b.tool_choice).toBeUndefined();
+      expect(b.temperature).toBeUndefined();
+      expect(calls[0].headers["x-api-key"]).toBe("test-key");
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+  it("passes Claude's error message through", async () => {
+    const { callModel, readConfig } = await import("../../../../server/ai/providers.js");
+    const orig = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: false, status: 400, text: async () => JSON.stringify({ error: { message: "bad schema" } }) });
+    try {
+      await expect(callModel(readConfig({ ANTHROPIC_API_KEY: "k" }), { system: "s", user: "u", schema: { type: "object" } })).rejects.toThrow("Claude API error 400: bad schema");
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+});

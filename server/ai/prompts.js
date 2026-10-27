@@ -14,6 +14,7 @@ export const EXPLAIN_SCHEMA = {
     headline: { type: "string", description: "One sentence, at most 35 words: the variance and its main cause." },
     points: {
       type: "array",
+      description: "Two to four points, biggest driver first.",
       minItems: 2,
       maxItems: 4,
       items: {
@@ -27,6 +28,7 @@ export const EXPLAIN_SCHEMA = {
     },
     checks: {
       type: "array",
+      description: "One to three items.",
       minItems: 1,
       maxItems: 3,
       items: { type: "string", description: "A question a manager should check next, or the what-if figure from FACTS." },

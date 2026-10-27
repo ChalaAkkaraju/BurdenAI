@@ -187,6 +187,21 @@ describe("Claude request (mocked API)", () => {
     expect(strict.properties.points.maxItems).toBeUndefined();
     expect(strict.properties.points.minItems).toBe(1);
 
+    // Claude rule: no enum on a type array, so nullable enums become anyOf.
+    const { PLAN_SCHEMA } = await import("./askCatalog.js");
+    const plan = strictSchema(PLAN_SCHEMA);
+    const walk = (n) => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== "object") return;
+      expect(Array.isArray(n.type)).toBe(false);
+      if (n.enum && n.type) for (const v of n.enum) expect(typeof v).toBe(n.type);
+      Object.values(n).forEach(walk);
+    };
+    walk(plan);
+    expect(plan.properties.metric.anyOf).toEqual([{ type: "string", enum: ["absorption", "gap_to_target", "cost_variance", "utilization", "burden_rate"] }, { type: "null" }]);
+    expect(plan.properties.limit.anyOf).toEqual([{ type: "integer" }, { type: "null" }]);
+    expect(plan.additionalProperties).toBe(false);
+
     const calls = [];
     const orig = globalThis.fetch;
     globalThis.fetch = async (url, init) => {

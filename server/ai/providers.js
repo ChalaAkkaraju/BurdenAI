@@ -88,6 +88,18 @@ export function strictSchema(node) {
     if (k === "minItems") { out.minItems = Math.min(1, Number(v) || 0); continue; }
     out[k] = strictSchema(v);
   }
+  // "type": ["string", "null"] (with or without an enum) → anyOf of a typed
+  // branch and a null branch; Claude rejects enums on a type array.
+  if (Array.isArray(out.type)) {
+    const { type, enum: values, description, ...rest } = out;
+    const branches = type.filter((t) => t !== "null").map((t) => {
+      const b = { type: t, ...rest };
+      if (values) b.enum = values.filter((v) => v !== null);
+      return b;
+    });
+    if (type.includes("null")) branches.push({ type: "null" });
+    return branches.length === 1 ? { ...branches[0], ...(description ? { description } : {}) } : { anyOf: branches, ...(description ? { description } : {}) };
+  }
   if (out.type === "object") out.additionalProperties = false;
   return out;
 }

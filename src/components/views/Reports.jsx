@@ -1,13 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import CountryDistribution from './CountryDistribution';
 import { useApp } from '../../context/AppContext';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, LabelList, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
-import { ChevronRight, Download, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ChevronRight, Download, TrendingUp, ArrowUpRight, ArrowDownRight, Network, LineChart as LineChartIcon, GitCompareArrows, Globe2, Target, Crosshair } from 'lucide-react';
 import { formatUSD, getFxRateSummary, getCurrencyInfo, formatLocalCurrency } from '../../utils/currency.js';
 import FlagIcon from '../FlagIcon';
+import UtilizationHistoryTab from '../../features/reports/UtilizationHistoryTab';
+import ForecastAccuracyTab from '../../features/reports/ForecastAccuracyTab';
+import { exportSheets, FMT, stamp } from '../../features/reports/exportXlsx.js';
+import { periodLabel } from '../../features/reports/engine.js';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
 
@@ -21,10 +25,10 @@ const fmt = (value) => formatUSD(value);
 
 const fmtRate = (v) => (v != null ? `$${parseFloat(v).toFixed(2)}/hr` : '—');
 
-export default function Reports() {
+export default function Reports({ onNavigate }) {
   const {
     periodData, summaryByCountry, selectedPeriod,
-    costData, employeeMap, periods
+    costData, employeeMap, periods, addAuditEntry,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('hierarchy');
@@ -369,38 +373,135 @@ export default function Reports() {
 
   // ════════════════════ RENDER ════════════════════
   const tabs = [
-    { id: 'hierarchy',       label: 'Hierarchy Drill-Down' },
-    { id: 'trends',          label: 'Trend Analysis' },
-    { id: 'variance',        label: 'Variance Analysis' },
-    { id: 'countryAnalytics', label: 'Country Analytics' },
+    { id: 'hierarchy',        label: 'Hierarchy Drill-Down',     icon: Network,          on: 'bg-slate-900 text-white',  off: 'text-slate-700' },
+    { id: 'trends',           label: 'Trend Analysis',           icon: LineChartIcon,    on: 'bg-blue-600 text-white',   off: 'text-blue-700' },
+    { id: 'variance',         label: 'Variance Analysis',        icon: GitCompareArrows, on: 'bg-indigo-600 text-white', off: 'text-indigo-700' },
+    { id: 'countryAnalytics', label: 'Country Analytics',        icon: Globe2,           on: 'bg-cyan-600 text-white',   off: 'text-cyan-700' },
+    { id: 'utilization',      label: 'Utilization & Absorption', icon: Target,           on: 'bg-amber-500 text-white',  off: 'text-amber-700' },
+    { id: 'forecastAccuracy', label: 'Forecast Accuracy',        icon: Crosshair,        on: 'bg-violet-600 text-white', off: 'text-violet-700' },
   ];
+
+  // ════════════════════ EXPORT (active tab → Excel) ════════════════════
+  // The two newer tabs register their own exporter; the rest are built here.
+  const childExportRef = useRef(null);
+  const registerChildExport = useCallback((fn) => { childExportRef.current = fn; }, []);
+
+  const exportBuiltIn = () => {
+    const sel = periodLabel(selectedPeriod);
+    if (activeTab === 'hierarchy') {
+      const level = hierarchyLevels[drillPath.length - 1]?.label || 'Level';
+      const path = drillPath.map((d) => d.label).join(' > ');
+      exportSheets(`burdenai-hierarchy-${selectedPeriod}-${stamp()}.xlsx`, [{
+        name: 'Hierarchy',
+        rows: [[`Period: ${sel} · Path: ${path}`], [level, 'Employees', 'Direct', 'Benefits', 'Overhead', 'Total burden cost', 'Paid hours', 'Burden rate'],
+          ...hierarchyData.map((r) => [r.name, r.employeeCount, r.directTotal, r.benefitTotal, r.overheadTotal, r.totalCTC, r.totalHours, r.avgBurdenRate])],
+        headerRows: 2, formats: { 2: FMT.usd, 3: FMT.usd, 4: FMT.usd, 5: FMT.usd, 6: FMT.int, 7: FMT.rate }, widths: [32, 11, 14, 14, 14, 18, 12, 12],
+      }]);
+      return 'Hierarchy Drill-Down';
+    }
+    if (activeTab === 'trends') {
+      exportSheets(`burdenai-trends-${stamp()}.xlsx`, [{
+        name: 'Monthly trend',
+        rows: [['Period', 'Employees', 'Direct', 'Benefits', 'Overhead', 'Total burden cost', 'Burden rate', 'Change vs prior month', 'Change %'],
+          ...trendData.map((r) => [r.period, r.employeeCount, r.directTotal, r.benefitTotal, r.overheadTotal, r.totalCTC, r.avgBurdenRate, r.momChange, r.momPct != null ? Number(r.momPct) / 100 : null])],
+        formats: { 2: FMT.usd, 3: FMT.usd, 4: FMT.usd, 5: FMT.usd, 6: FMT.rate, 7: FMT.usd, 8: FMT.pct }, widths: [10, 11, 14, 14, 14, 18, 12, 20, 10],
+      }]);
+      return 'Trend Analysis';
+    }
+    if (activeTab === 'variance') {
+      const per1 = sortedPeriods[p1Idx];
+      const per2 = sortedPeriods[p2Idx];
+      const sheets = [{
+        name: 'Variance',
+        rows: [['Measure', per1, per2, 'Change', 'Change %'],
+          ...varianceRows.map((r) => [r.label, r.v1, r.v2, r.delta, r.pct / 100])],
+        formats: { 1: '#,##0.00', 2: '#,##0.00', 3: '#,##0.00', 4: FMT.pct }, widths: [22, 16, 16, 16, 10],
+      }];
+      if (varianceAttribution) {
+        sheets.push({
+          name: 'Attribution',
+          rows: [['Driver', 'Amount', 'Employees'], ...varianceAttribution.buckets.map((b) => [b.label, b.value, b.count]),
+            ['Total change', varianceAttribution.total, null], ['Cost-center moves (count)', null, varianceAttribution.moveCount]],
+          formats: { 1: FMT.usd }, widths: [26, 16, 12],
+        });
+      }
+      exportSheets(`burdenai-variance-${per1}-vs-${per2}-${stamp()}.xlsx`, sheets);
+      return 'Variance Analysis';
+    }
+    if (activeTab === 'countryAnalytics') {
+      const matrix = [['Country', ...rateFamilies, ],
+        ...rateCountries.map((c) => [c, ...rateFamilies.map((f) => rateMatrix[c]?.[f]?.rate || null)]),
+        ['Global average', ...rateFamilies.map((f) => rateGlobalAvg[f] || null)]];
+      exportSheets(`burdenai-country-analytics-${selectedPeriod}-${stamp()}.xlsx`, [
+        {
+          name: 'Composition',
+          rows: [['Country', 'Employees', 'Direct', 'Benefits', 'Overhead', 'Total burden cost', 'Share', 'Burden rate'],
+            ...compositionData.map((r) => [r.name, r.employeeCount, r.Direct, r.Benefits, r.Overhead, r.total, compositionGrandTotal ? r.total / compositionGrandTotal : null, r.avgBurdenRate])],
+          formats: { 2: FMT.usd, 3: FMT.usd, 4: FMT.usd, 5: FMT.usd, 6: FMT.pct, 7: FMT.rate }, widths: [20, 11, 14, 14, 14, 18, 9, 12],
+        },
+        { name: 'Rate matrix ($ per hr)', rows: matrix, formats: Object.fromEntries(rateFamilies.map((_, i) => [i + 1, FMT.rate])), widths: [20, ...rateFamilies.map(() => 14)] },
+      ]);
+      return 'Country Analytics';
+    }
+    return null;
+  };
+
+  const handleExport = () => {
+    const name = (activeTab === 'utilization' || activeTab === 'forecastAccuracy')
+      ? childExportRef.current?.()
+      : exportBuiltIn();
+    if (name && addAuditEntry) {
+      try {
+        addAuditEntry({ action: 'Report Exported', target: name, details: `Reports & Analytics · ${name} exported to Excel`, category: 'Reporting' });
+      } catch { /* audit is best-effort */ }
+    }
+  };
+
+  const trendRangeLabel = sortedPeriods.length
+    ? `${sortedPeriods.length} months · ${periodLabel(sortedPeriods[0])} – ${periodLabel(sortedPeriods[sortedPeriods.length - 1])}`
+    : '';
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-        <p className="text-gray-600 mt-2">
-          Period: <span className="font-semibold text-gray-800">{selectedPeriod}</span> — Comprehensive cost analysis and trend reporting
-          <span className="text-gray-400"> · All aggregated values in USD</span>
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
+          <p className="text-gray-600 mt-2">
+            Period: <span className="font-semibold text-gray-800">{selectedPeriod}</span> — Burden cost, utilization and forecast reporting
+            <span className="text-gray-400"> · All aggregated values in USD</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white shadow-sm text-sm font-semibold hover:bg-blue-700"
+        >
+          <Download size={14} /> Export to Excel
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <div className="flex gap-8">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-1 font-medium border-b-2 transition text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="mb-6">
+        <div role="tablist" aria-label="Reports" className="inline-flex flex-wrap gap-1.5 p-1.5 bg-white border border-gray-200 rounded-2xl shadow-sm">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  isActive ? `${tab.on} shadow-sm` : `${tab.off} hover:bg-gray-50`
+                }`}
+              >
+                <Icon size={15} strokeWidth={2.2} />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -522,7 +623,7 @@ export default function Reports() {
         <div className="space-y-6">
           {/* Dual-axis chart */}
           <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Burden Rate & Cost Trend (60 Months)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Burden Rate & Cost Trend ({trendRangeLabel})</h2>
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={trendData}>
@@ -1201,6 +1302,9 @@ export default function Reports() {
 
       {/* ═══ TAB 7: Country Distribution ═══ */}
       {activeTab === 'countryAnalytics' && countrySubView === 'distribution' && <CountryDistribution />}
+
+      {activeTab === 'utilization' && <UtilizationHistoryTab onExportReady={registerChildExport} />}
+      {activeTab === 'forecastAccuracy' && <ForecastAccuracyTab onExportReady={registerChildExport} onNavigate={onNavigate} />}
     </div>
   );
 }

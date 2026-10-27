@@ -20,6 +20,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import AiAdminTab from '../../features/ai/components/AiAdminTab';
 
 // Mock users data
 const MOCK_USERS = [
@@ -798,12 +799,13 @@ export default function AdminConsole() {
   const { auditLog, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('Users');
 
-  const tabs = ['Users', 'Audit', 'Settings', 'Governance'];
+  const tabs = ['Users', 'Audit', 'Settings', 'Governance', 'AI'];
   const tabIcons = {
     Users: Users,
     Audit: LogIn,
     Settings: Settings,
     Governance: Shield,
+    AI: Settings,
   };
 
   return (
@@ -836,6 +838,7 @@ export default function AdminConsole() {
           {activeTab === 'Audit' && <AuditTrailTab auditLog={auditLog || []} />}
           {activeTab === 'Settings' && <SystemSettingsTab />}
           {activeTab === 'Governance' && <DataGovernanceTab />}
+          {activeTab === 'AI' && <AiAdminTab />}
         </div>
       </div>
     </div>

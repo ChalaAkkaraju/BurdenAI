@@ -3,3 +3,7 @@ dist
 .DS_Store
 *.log
 vite.config.js.timestamp-*.mjs
+
+# Local settings and secrets (API keys) - never commit
+.env.local
+.env.*.local

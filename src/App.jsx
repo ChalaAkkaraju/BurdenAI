@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Login from './components/Login';
 import Landing from './components/Landing';
 import Dashboard from './components/views/Dashboard';
+import HomeDashboard from './components/views/HomeDashboard';
 import DataImport from './components/views/DataImport';
 import RawData from './components/views/RawData';
 import EmployeeRoster from './components/views/EmployeeRoster';
@@ -13,9 +14,12 @@ import CalculationRuns from './components/views/CalculationRuns';
 import Reports from './components/views/Reports';
 import AdminConsole from './components/views/AdminConsole';
 import ForecastTab from './features/forecast/components/ForecastTab';
+import PlanVsActualTab from './features/planVsActual/components/PlanVsActualTab';
+import { AiProvider } from './features/ai/AiContext';
 
 const pages = {
-  dashboard: Dashboard,
+  dashboard: HomeDashboard,
+  burdencost: Dashboard,
   import: DataImport,
   rawdata: RawData,
   roster: EmployeeRoster,
@@ -23,6 +27,7 @@ const pages = {
   allocation: AllocationRules,
   calculations: CalculationRuns,
   forecast: ForecastTab,
+  planvsactual: PlanVsActualTab,
   reports: Reports,
   admin: AdminConsole,
 };
@@ -48,9 +53,11 @@ function AuthedApp() {
     if (hasAccess(id)) setActivePage(id);
   };
   return (
-    <Layout activePage={effectivePage} setActivePage={guardedSetActivePage}>
-      <PageComponent />
-    </Layout>
+    <AiProvider activePage={effectivePage}>
+      <Layout activePage={effectivePage} setActivePage={guardedSetActivePage}>
+        <PageComponent onNavigate={guardedSetActivePage} />
+      </Layout>
+    </AiProvider>
   );
 }
 

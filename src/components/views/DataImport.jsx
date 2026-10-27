@@ -26,6 +26,9 @@ import {
   fetchFromErp,
   SUPPORTED_ERPS,
 } from '../../services/erpAllocationService';
+import { asOfDate, isoDay } from '../../data/asOf.js';
+
+const compactDay = (offset) => isoDay(asOfDate(offset)).replace(/-/g, '');
 
 export default function DataImport() {
   const { addAuditEntry, allocationRules, setAllocationRules } = useApp();
@@ -116,15 +119,15 @@ export default function DataImport() {
   const [importHistory] = useState([
     {
       id: 1,
-      date: '2026-04-04',
+      date: isoDay(asOfDate(3)),
       source: 'File Upload',
-      file: 'employees_master_20260404.csv',
+      file: `employees_master_${compactDay(3)}.csv`,
       records: 2543,
       status: 'Completed',
     },
     {
       id: 2,
-      date: '2026-04-03',
+      date: isoDay(asOfDate(2)),
       source: 'API Integration',
       file: 'api.company.com/employees',
       records: 1256,
@@ -132,31 +135,31 @@ export default function DataImport() {
     },
     {
       id: 3,
-      date: '2026-04-02',
+      date: isoDay(asOfDate(1)),
       source: 'File Upload',
-      file: 'payroll_data_20260402.csv',
+      file: `payroll_data_${compactDay(1)}.csv`,
       records: 2543,
       status: 'Completed',
     },
     {
       id: 4,
-      date: '2026-04-01',
+      date: isoDay(asOfDate(0)),
       source: 'SFTP',
-      file: '/data/imports/benefits_20260401.csv',
+      file: `/data/imports/benefits_${compactDay(0)}.csv`,
       records: 892,
       status: 'Completed',
     },
     {
       id: 5,
-      date: '2026-03-31',
+      date: isoDay(asOfDate(-1)),
       source: 'File Upload',
-      file: 'overhead_allocation_20260331.xlsx',
+      file: `overhead_allocation_${compactDay(-1)}.xlsx`,
       records: 156,
       status: 'Processing',
     },
     {
       id: 6,
-      date: '2026-03-30',
+      date: isoDay(asOfDate(-2)),
       source: 'API Integration',
       file: 'api.company.com/costs',
       records: 3012,
@@ -164,25 +167,25 @@ export default function DataImport() {
     },
     {
       id: 7,
-      date: '2026-03-29',
+      date: isoDay(asOfDate(-3)),
       source: 'File Upload',
-      file: 'departments_20260329.csv',
+      file: `departments_${compactDay(-3)}.csv`,
       records: 45,
       status: 'Queued',
     },
     {
       id: 8,
-      date: '2026-03-28',
+      date: isoDay(asOfDate(-4)),
       source: 'SFTP',
-      file: '/data/imports/payroll_20260328.csv',
+      file: `/data/imports/payroll_${compactDay(-4)}.csv`,
       records: 2487,
       status: 'Completed',
     },
     {
       id: 9,
-      date: '2026-03-27',
+      date: isoDay(asOfDate(-5)),
       source: 'File Upload',
-      file: 'cost_centers_20260327.csv',
+      file: `cost_centers_${compactDay(-5)}.csv`,
       records: 78,
       status: 'Completed',
     },

@@ -4,6 +4,7 @@ import {
   familyToDepartments
 } from './orgHierarchy.js';
 import { calculateAllBenefits, getRulesForCountry } from './countryBenefitRules.js';
+import { DATA_AS_OF, AS_OF_YEAR, AS_OF_MONTH, asOfDate, isoDay, asOfMonthName, asOfQuarter, asOfFiscalYear } from './asOf.js';
 
 // Seeded random for reproducibility
 function seededRandom(seed) {
@@ -270,7 +271,7 @@ export function generateEmployees(count = 500) {
     // ~4% terminated in last 12 months
     if (r < 0.04) {
       const monthsAgo = Math.floor(rand() * 12) + 1;
-      const termDate = new Date(2026, 3 - monthsAgo, Math.floor(rand() * 27) + 1);
+      const termDate = new Date(AS_OF_YEAR, AS_OF_MONTH - monthsAgo, Math.floor(rand() * 27) + 1);
       emp.employmentStatus = 'Terminated';
       emp.status = 'Terminated';
       emp.terminationDate = termDate.toISOString().slice(0, 10);
@@ -283,7 +284,7 @@ export function generateEmployees(count = 500) {
     else if (r < 0.07) {
       const kind = pick(leaveKinds);
       const startOffset = Math.floor(rand() * 3) + 1; // 1-3 months ago
-      const startDt = new Date(2026, 3 - startOffset, 1);
+      const startDt = new Date(AS_OF_YEAR, AS_OF_MONTH - startOffset, 1);
       const endDt = new Date(startDt);
       endDt.setMonth(endDt.getMonth() + kind.months);
       emp.employmentStatus = 'Active';
@@ -310,7 +311,7 @@ export function generateEmployees(count = 500) {
     // ~8% had a cost-center move in the last 18 months (independent of leave/term)
     if (rand() < 0.08 && emp.employmentStatus === 'Active') {
       const monthsAgo = Math.floor(rand() * 18) + 1;
-      const moveDate = new Date(2026, 3 - monthsAgo, 1);
+      const moveDate = new Date(AS_OF_YEAR, AS_OF_MONTH - monthsAgo, 1);
       const moveDateStr = moveDate.toISOString().slice(0, 10);
       // Close previous assignment, open new one pointing at current CC
       const prev = emp.assignmentHistory[0];
@@ -351,14 +352,16 @@ const yearAdjustments = {
   2025: 0.028 + 0.008,  // near-target inflation + slight demand
   2026: 0.025 + 0.005,  // stable inflation + flat market
 };
+// Years after 2026 (the data rolls forward to the last completed month) use 3%.
+const LAST_DATA_YEAR = Math.max(2026, AS_OF_YEAR);
 (function buildMultipliers() {
   annualMultipliers[2021] = 1.0;
-  for (let y = 2022; y <= 2026; y++) {
+  for (let y = 2022; y <= LAST_DATA_YEAR; y++) {
     annualMultipliers[y] = annualMultipliers[y - 1] * (1 + (yearAdjustments[y] || 0.03));
   }
   // Normalize so 2026 = 1.0 (current-year baseline)
   const ref = annualMultipliers[2026];
-  for (let y = 2021; y <= 2026; y++) {
+  for (let y = 2021; y <= LAST_DATA_YEAR; y++) {
     annualMultipliers[y] = annualMultipliers[y] / ref;
   }
 })();
@@ -559,14 +562,14 @@ export function generateAllocationRules() {
       costCategory: 'OH-FAC',
       method: 'custom',
       description: 'DRAFT: New facilities allocation based on occupied square footage per department',
-      effectiveDate: '2026-07-01',
+      effectiveDate: isoDay(new Date(Date.UTC(AS_OF_YEAR, AS_OF_MONTH + 3, 1))), // a quarter out
       endDate: null,
       version: 1,
       status: 'Draft',
       approvedBy: null,
       approvedDate: null,
       createdBy: 'admin@burdencorp.com',
-      lastModified: '2026-03-15',
+      lastModified: isoDay(asOfDate(-16)),
     },
   ];
 }
@@ -593,27 +596,32 @@ export function generateCalculationRuns(periods) {
 }
 
 export function generateAuditLog() {
+  // Dated just after the latest month-end close so the log always looks recent.
+  const t = (days, h, m) => asOfDate(days, h, m).toISOString().replace('.000', '');
+  const thisMonth = asOfMonthName(0);
+  const lastMonth = asOfMonthName(1);
   return [
-    { id: 1, timestamp: '2026-03-28T14:22:00Z', user: 'admin@burdencorp.com', action: 'Allocation Rule Modified', target: 'AR-003', details: 'Updated G&A rate from 6.5% to 7.0%', category: 'Configuration' },
-    { id: 2, timestamp: '2026-03-27T09:15:00Z', user: 'system@burdencorp.com', action: 'Calculation Run Completed', target: 'RUN-006', details: 'March 2026 monthly close - 500 employees processed', category: 'Calculation' },
-    { id: 3, timestamp: '2026-03-25T16:45:00Z', user: 'hr.admin@burdencorp.com', action: 'Employee Data Import', target: 'Batch Import', details: 'Updated 12 employee records from HRIS feed', category: 'Data' },
-    { id: 4, timestamp: '2026-03-22T11:00:00Z', user: 'finance@burdencorp.com', action: 'Report Exported', target: 'Burden Rate by Country', details: 'Q1 2026 burden rate report exported to Excel', category: 'Reporting' },
-    { id: 5, timestamp: '2026-03-20T08:30:00Z', user: 'admin@burdencorp.com', action: 'FX Rates Updated', target: 'Currency Table', details: 'March 2026 FX rates loaded from Treasury', category: 'Configuration' },
-    { id: 6, timestamp: '2026-03-18T13:20:00Z', user: 'cfo@burdencorp.com', action: 'Allocation Rule Approved', target: 'AR-006', details: 'Corporate Allocations rule v5 approved', category: 'Approval' },
-    { id: 7, timestamp: '2026-03-15T10:00:00Z', user: 'admin@burdencorp.com', action: 'User Role Changed', target: 'new.analyst@burdencorp.com', details: 'Role changed from Viewer to Analyst', category: 'Security' },
-    { id: 8, timestamp: '2026-03-12T15:45:00Z', user: 'system@burdencorp.com', action: 'SAP Extract Received', target: 'Cost Center Actuals', details: 'February 2026 GL actuals imported - 2,847 line items', category: 'Data' },
-    { id: 9, timestamp: '2026-03-10T09:00:00Z', user: 'admin@burdencorp.com', action: 'New Cost Category Added', target: 'OH-CYBER', details: 'Cybersecurity allocation category added for FY2026-Q3', category: 'Configuration' },
-    { id: 10, timestamp: '2026-03-08T14:30:00Z', user: 'hr.admin@burdencorp.com', action: 'Org Hierarchy Updated', target: 'CCODE-AUTO', details: 'Automation Vertical reorganized - 2 new departments added', category: 'Data' },
+    { id: 1, timestamp: t(-3, 14, 22), user: 'admin@burdencorp.com', action: 'Allocation Rule Modified', target: 'AR-003', details: 'Updated G&A rate from 6.5% to 7.0%', category: 'Configuration' },
+    { id: 2, timestamp: t(-4, 9, 15), user: 'system@burdencorp.com', action: 'Calculation Run Completed', target: 'RUN-006', details: `${thisMonth} monthly close - 500 employees processed`, category: 'Calculation' },
+    { id: 3, timestamp: t(-6, 16, 45), user: 'hr.admin@burdencorp.com', action: 'Employee Data Import', target: 'Batch Import', details: 'Updated 12 employee records from HRIS feed', category: 'Data' },
+    { id: 4, timestamp: t(-9, 11, 0), user: 'finance@burdencorp.com', action: 'Report Exported', target: 'Burden Rate by Country', details: `${asOfQuarter()} burden rate report exported to Excel`, category: 'Reporting' },
+    { id: 5, timestamp: t(-11, 8, 30), user: 'admin@burdencorp.com', action: 'FX Rates Updated', target: 'Currency Table', details: `${thisMonth} FX rates loaded from Treasury`, category: 'Configuration' },
+    { id: 6, timestamp: t(-13, 13, 20), user: 'cfo@burdencorp.com', action: 'Allocation Rule Approved', target: 'AR-006', details: 'Corporate Allocations rule v5 approved', category: 'Approval' },
+    { id: 7, timestamp: t(-16, 10, 0), user: 'admin@burdencorp.com', action: 'User Role Changed', target: 'new.analyst@burdencorp.com', details: 'Role changed from Viewer to Analyst', category: 'Security' },
+    { id: 8, timestamp: t(-19, 15, 45), user: 'system@burdencorp.com', action: 'SAP Extract Received', target: 'Cost Center Actuals', details: `${lastMonth} GL actuals imported - 2,847 line items`, category: 'Data' },
+    { id: 9, timestamp: t(-21, 9, 0), user: 'admin@burdencorp.com', action: 'New Cost Category Added', target: 'OH-CYBER', details: `Cybersecurity allocation category added for ${asOfFiscalYear()}`, category: 'Configuration' },
+    { id: 10, timestamp: t(-23, 14, 30), user: 'hr.admin@burdencorp.com', action: 'Org Hierarchy Updated', target: 'CCODE-AUTO', details: 'Automation Vertical reorganized - 2 new departments added', category: 'Data' },
   ];
 }
 
-// Generate 5 years of monthly periods: April 2021 → March 2026
+// Monthly periods from April 2021 up to the last completed month (DATA_AS_OF),
+// so the sample data is always current. Earlier periods never change.
 function generatePeriods() {
   const result = [];
   let year = 2021;
   let month = 4;
-  const endYear = 2026;
-  const endMonth = 3;
+  const endYear = AS_OF_YEAR;
+  const endMonth = AS_OF_MONTH;
   while (year < endYear || (year === endYear && month <= endMonth)) {
     result.push(`${year}-${String(month).padStart(2, '0')}`);
     month++;
@@ -636,7 +644,7 @@ for (const run of calculationRuns) {
   run.totalCostToCompany = periodCosts.reduce((sum, c) => sum + c.totalCostToCompany, 0);
 }
 
-export { employees, costData, allocationRules, calculationRuns, auditLog, periods, countries };
+export { employees, costData, allocationRules, calculationRuns, auditLog, periods, countries, DATA_AS_OF };
 
 // Aggregation helpers
 export function aggregateByField(costRecords, employeeMap, field, period = null) {

@@ -16,6 +16,7 @@ import SensitivityChart from "./SensitivityChart.jsx";
 import SnapshotsPanel from "./SnapshotsPanel.jsx";
 import ErpExportPanel from "./ErpExportPanel.jsx";
 import PrintView from "./PrintView.jsx";
+import LearnedForecastPanel from "../../ai/components/LearnedForecastPanel.jsx";
 import { useScenarios } from "../hooks/useScenarios.js";
 import { useSnapshots, buildSnapshot } from "../hooks/useSnapshots.js";
 import { usePersistedState } from "../hooks/usePersistedState.js";
@@ -451,6 +452,9 @@ export default function ForecastTab() {
         baseline={baseline}
         activeId={activeId}
       />
+
+      {/* Learned forecast (trend model fitted on history) */}
+      <LearnedForecastPanel scenarios={scenarios} />
 
       {/* Sensitivity tornado for the active scenario */}
       <SensitivityChart

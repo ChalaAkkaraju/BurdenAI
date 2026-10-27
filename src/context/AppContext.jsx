@@ -41,14 +41,14 @@ const USERS_KEY = 'burden_users_registry';
 // '*' means access to every page.
 export const ROLE_PERMISSIONS = {
   'Admin (Global)':  ['*'],
-  'Finance':         ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'HR':              ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'Regional Lead':   ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'US Manager':      ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'APAC Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'EMEA Lead':       ['dashboard', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast'],
-  'Analyst':         ['dashboard', 'reports', 'roster', 'rawdata'],
-  'Viewer':          ['dashboard', 'reports'],
+  'Finance':         ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'HR':              ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'Regional Lead':   ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'US Manager':      ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'APAC Lead':       ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'EMEA Lead':       ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata', 'import', 'benefits', 'allocation', 'calculations', 'forecast', 'planvsactual'],
+  'Analyst':         ['dashboard', 'burdencost', 'reports', 'roster', 'rawdata'],
+  'Viewer':          ['dashboard', 'burdencost', 'reports'],
 };
 
 export function userCanAccess(user, pageId) {
@@ -63,7 +63,7 @@ export function AppProvider({ children }) {
   const [allocationRules, setAllocationRules] = useState(rawRules);
   const [calculationRuns, setCalculationRuns] = useState(rawRuns);
   const [auditLog, setAuditLog] = useState(rawAuditLog);
-  const [selectedPeriod, setSelectedPeriod] = useState('2026-03');
+  const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);

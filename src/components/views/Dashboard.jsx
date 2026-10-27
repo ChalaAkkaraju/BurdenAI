@@ -282,8 +282,8 @@ const Dashboard = () => {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-500 mt-1 text-sm">Monitor burden costs and key metrics</p>
+            <h1 className="text-3xl font-bold text-gray-900">Burden Cost</h1>
+            <p className="text-gray-500 mt-1 text-sm">Burden cost, rates and drivers for the selected period</p>
           </div>
           <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl px-5 py-3 shadow-sm">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
